@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Fairway Club · Book a Bay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green:        #1F5C3D;   /* fairway green — primary */
+    --green-deep:   #143C29;   /* pine — headers/depth */
+    --green-mid:    #2E7D51;
+    --green-soft:   #EAF1EC;   /* pale wash */
+    --green-line:   #CFE0D5;
+    --ink:          #16211C;
+    --muted:        #5B6B62;
+    --line:         #E4E9E5;
+    --bg:           #F4F6F4;
+    --card:         #FFFFFF;
+    --danger:       #B4433A;
+    --danger-soft:  #FBEDEB;
+    --amber:        #B07A16;
+    --amber-soft:   #FBF3E1;
+    --radius:       16px;
+    --shadow:       0 1px 2px rgba(20,60,41,.05), 0 8px 24px rgba(20,60,41,.06);
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: #DDE4DE;
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex; justify-content: center; align-items: flex-start;
+    padding: 0;
+  }
+  /* Phone frame so it reads as a LINE LIFF mini-app */
+  .phone {
+    width: 100%; max-width: 430px;
+    min-height: 100vh;
+    background: var(--bg);
+    position: relative;
+    display: flex; flex-direction: column;
+    box-shadow: 0 0 60px rgba(0,0,0,.12);
+  }
+  @media (min-width: 480px) {
+    body { padding: 24px; align-items: center; }
+    .phone { min-height: auto; height: calc(100vh - 48px); border-radius: 34px; overflow: hidden; border: 10px solid #10231A; }
+  }
+
+  /* ---- LINE-style top bar ---- */
+  .liff-bar {
+    background: var(--green-deep);
+    color: #EAF1EC;
+    padding: 12px 16px 12px;
+    display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+  }
+  .liff-bar .logo {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--green-mid), var(--green));
+    display: grid; place-items: center;
+    font-family: 'Space Grotesk'; font-weight: 700; font-size: 17px; color: #fff;
+  }
+  .liff-bar .title { font-family: 'Space Grotesk'; font-weight: 600; font-size: 15px; line-height: 1.1; }
+  .liff-bar .sub { font-size: 11px; opacity: .7; font-family: 'JetBrains Mono'; }
+  .liff-bar .via { margin-left: auto; font-size: 10px; opacity: .6; text-align: right; line-height: 1.3; }
+
+  /* demo banner */
+  .demo-tag {
+    background: #FFF7E6; color: #7A5B12; font-size: 10.5px; font-family: 'JetBrains Mono';
+    padding: 5px 16px; text-align: center; letter-spacing: .02em; border-bottom: 1px solid #F0E4C4;
+    flex-shrink: 0;
+  }
+
+  .scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .pad { padding: 16px; }
+
+  h1.screen-h { font-family: 'Space Grotesk'; font-size: 21px; font-weight: 600; letter-spacing: -.01em; }
+  .screen-sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .eyebrow { font-family: 'JetBrains Mono'; font-size: 11px; color: var(--green-mid); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+
+  /* ---- Date strip ---- */
+  .section-label { font-family: 'JetBrains Mono'; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin: 20px 0 9px; font-weight: 600; }
+  .date-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .date-strip::-webkit-scrollbar { display: none; }
+  .date-chip {
+    flex: 0 0 auto; width: 54px; padding: 9px 0; border-radius: 13px;
+    background: var(--card); border: 1.5px solid var(--line); cursor: pointer;
+    text-align: center; transition: .12s; user-select: none;
+  }
+  .date-chip .dow { font-size: 10.5px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .date-chip .dnum { font-family: 'Space Grotesk'; font-size: 19px; font-weight: 600; margin-top: 1px; }
+  .date-chip .mon { font-size: 9.5px; color: var(--muted); }
+  .date-chip.active { background: var(--green); border-color: var(--green); color: #fff; box-shadow: 0 6px 14px rgba(31,92,61,.28); }
+  .date-chip.active .dow, .date-chip.active .mon { color: rgba(255,255,255,.8); }
+  .date-chip.today-dot { position: relative; }
+  .date-chip.today-dot::after { content:''; position:absolute; bottom:5px; left:50%; transform:translateX(-50%); width:4px;height:4px;border-radius:50%; background: var(--green-mid); }
+  .date-chip.active.today-dot::after { background:#fff; }
+
+  /* ---- Room toggle ---- */
+  .room-toggle { display: flex; gap: 8px; margin-top: 4px; }
+  .room-btn {
+    flex: 1; padding: 11px; border-radius: 12px; background: var(--card); border: 1.5px solid var(--line);
+    font-family: 'Space Grotesk'; font-weight: 600; font-size: 14px; cursor: pointer; transition: .12s; color: var(--ink);
+    display:flex; align-items:center; justify-content:center; gap:7px;
+  }
+  .room-btn .icn { width:8px;height:8px;border-radius:50%; background: var(--green-mid); }
+  .room-btn.active { background: var(--green-soft); border-color: var(--green); color: var(--green-deep); }
+
+  /* ---- Duration picker ---- */
+  .dur-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .dur-strip::-webkit-scrollbar { display: none; }
+  .dur-chip {
+    flex: 0 0 auto; min-width: 76px; padding: 9px 12px; border-radius: 13px;
+    background: var(--card); border: 1.5px solid var(--line); cursor: pointer;
+    text-align: center; transition: .12s; user-select: none; position: relative;
+  }
+  .dur-chip .dl { font-family: 'Space Grotesk'; font-weight: 600; font-size: 14px; }
+  .dur-chip .dp { font-family: 'JetBrains Mono'; font-size: 10.5px; color: var(--green-mid); margin-top: 2px; font-weight: 600; }
+  .dur-chip .dp .strike { text-decoration: line-through; opacity: .55; margin-right: 4px; }
+  .dur-chip.active { background: var(--green); border-color: var(--green); box-shadow: 0 6px 14px rgba(31,92,61,.28); }
+  .dur-chip.active .dl { color: #fff; }
+  .dur-chip.active .dp { color: rgba(255,255,255,.85); }
+  .dur-chip .promo-tag {
+    position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+    background: var(--amber); color: #fff; font-family: 'JetBrains Mono'; font-size: 8.5px;
+    font-weight: 600; padding: 2px 7px; border-radius: 8px; white-space: nowrap; letter-spacing: .03em;
+  }
+  .dur-chip.active .promo-tag { background: #fff; color: var(--amber); }
+
+  /* ---- Slot grid ---- */
+  .slot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
+  .slot {
+    padding: 12px 4px; border-radius: 12px; background: var(--card); border: 1.5px solid var(--line);
+    text-align: center; cursor: pointer; transition: .12s; user-select: none;
+  }
+  .slot .t { font-family: 'JetBrains Mono'; font-weight: 600; font-size: 14px; }
+  .slot .s { font-size: 10px; color: var(--green-mid); margin-top: 2px; font-weight: 600; }
+  .slot .s.scarce { color: var(--amber); }
+  .slot.selected .s.scarce { color: rgba(255,255,255,.9); }
+  .slot:active { transform: scale(.97); }
+  .slot.selected { background: var(--green); border-color: var(--green); color: #fff; box-shadow: 0 6px 14px rgba(31,92,61,.28); }
+  .slot.selected .s { color: rgba(255,255,255,.85); }
+  .slot.unavailable { background: #F1F2F1; border-color: transparent; color: #B7BFB9; cursor: not-allowed; }
+  .slot.unavailable .s { color: #C4B0AE; }
+  .slot.unavailable .t { text-decoration: line-through; }
+
+  .legend { display:flex; gap:14px; margin-top:12px; font-size:11px; color:var(--muted); }
+  .legend span { display:flex; align-items:center; gap:5px; }
+  .legend i { width:11px;height:11px;border-radius:4px; display:inline-block; }
+
+  /* ---- Sticky CTA bar ---- */
+  .cta-bar {
+    flex-shrink: 0; background: var(--card); border-top: 1px solid var(--line);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    display: flex; align-items: center; gap: 12px;
+  }
+  .cta-summary { flex: 1; min-width: 0; }
+  .cta-summary .l1 { font-family: 'Space Grotesk'; font-weight: 600; font-size: 14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cta-summary .l2 { font-size: 11.5px; color: var(--muted); }
+  .btn {
+    font-family: 'Space Grotesk'; font-weight: 600; font-size: 15px; border: none; cursor: pointer;
+    background: var(--green); color: #fff; padding: 13px 22px; border-radius: 13px; transition: .12s;
+  }
+  .btn:disabled { background: #C3CCC6; cursor: not-allowed; }
+  .btn.block { width: 100%; padding: 15px; font-size: 16px; }
+  .btn.ghost { background: transparent; color: var(--green); border: 1.5px solid var(--green-line); }
+  .btn.danger { background: var(--danger); }
+  .btn:not(:disabled):active { transform: scale(.98); }
+
+  /* ---- Generic card ---- */
+  .card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .card.pad { padding: 18px; }
+
+  .kv { display:flex; justify-content:space-between; align-items:center; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .kv:last-child { border-bottom: none; }
+  .kv .k { color: var(--muted); font-size: 13px; }
+  .kv .v { font-family: 'Space Grotesk'; font-weight: 600; font-size: 14px; text-align:right; }
+  .kv .v.mono { font-family: 'JetBrains Mono'; }
+
+  /* ---- Payment ---- */
+  .qr-box { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; text-align: center; }
+  .qr-ph {
+    width: 190px; height: 190px; margin: 6px auto 0; border-radius: 14px;
+    background:
+      linear-gradient(135deg, rgba(31,92,61,.05), rgba(31,92,61,.02)),
+      repeating-conic-gradient(#16211C 0% 25%, #fff 0% 50%) 50% / 15px 15px;
+    position: relative; border: 6px solid #fff; box-shadow: inset 0 0 0 1px var(--line);
+    display:grid; place-items:center;
+  }
+  .qr-ph::after {
+    content:'QR'; font-family:'JetBrains Mono'; font-weight:600; font-size:13px; color:#16211C;
+    background:#fff; padding:8px 12px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  .qr-cap { font-size:11px; color:var(--muted); margin-top:12px; font-family:'JetBrains Mono'; }
+  .bank { display:flex; align-items:center; gap:12px; padding: 13px 15px; }
+  .bank .badge { width:40px;height:40px;border-radius:10px; background: var(--green-soft); display:grid;place-items:center; font-family:'Space Grotesk'; font-weight:700; color:var(--green-deep); flex-shrink:0; }
+  .bank .info { flex:1; min-width:0; }
+  .bank .name { font-family:'Space Grotesk'; font-weight:600; font-size:14px; }
+  .bank .acct { font-family:'JetBrains Mono'; font-size:13px; color:var(--green-deep); letter-spacing:.02em; }
+  .bank .who { font-size:11px; color:var(--muted); }
+  .copy-btn { font-family:'JetBrains Mono'; font-size:11px; background:var(--green-soft); color:var(--green-deep); border:none; padding:7px 11px; border-radius:8px; cursor:pointer; font-weight:600; }
+
+  .upload-zone {
+    margin-top:14px; border:1.5px dashed var(--green-line); border-radius:14px; padding:20px; text-align:center;
+    background: var(--green-soft); cursor:pointer;
+  }
+  .upload-zone .ic { font-size:26px; }
+  .upload-zone .t { font-family:'Space Grotesk'; font-weight:600; font-size:14px; margin-top:6px; color:var(--green-deep); }
+  .upload-zone .h { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .upload-zone.filled { border-style:solid; border-color:var(--green); }
+  .slip-preview { display:flex; align-items:center; gap:10px; justify-content:center; }
+  .slip-preview .thumb { width:44px;height:56px;border-radius:6px; background: linear-gradient(160deg,#fff,#e8efe9); border:1px solid var(--green-line); display:grid;place-items:center; font-size:20px; }
+
+  /* verifying overlay */
+  .verify-state { text-align:center; padding: 30px 20px; }
+  .spinner { width:46px;height:46px;border-radius:50%; border:4px solid var(--green-soft); border-top-color: var(--green); margin: 0 auto 16px; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .verify-state .t { font-family:'Space Grotesk'; font-weight:600; font-size:17px; }
+  .verify-state .h { color:var(--muted); font-size:13px; margin-top:5px; }
+
+  /* success / fail */
+  .result-icon { width:74px;height:74px;border-radius:50%; display:grid;place-items:center; margin:8px auto 14px; font-size:38px; }
+  .result-icon.ok { background: var(--green-soft); color: var(--green); }
+  .result-icon.bad { background: var(--danger-soft); color: var(--danger); }
+  .ref-badge { font-family:'JetBrains Mono'; font-weight:600; font-size:22px; letter-spacing:.06em; color: var(--green-deep); background: var(--green-soft); padding: 10px 18px; border-radius: 12px; display:inline-block; }
+
+  .banner-note { background: var(--amber-soft); border:1px solid #F0E1BE; border-radius:12px; padding:11px 13px; font-size:12px; color:#6E5410; display:flex; gap:8px; }
+  .banner-note.info { background: var(--green-soft); border-color: var(--green-line); color: var(--green-deep); }
+  .banner-note b { font-weight:600; }
+
+  /* fail toggle */
+  .fail-toggle { display:flex; align-items:center; gap:9px; padding: 11px 13px; border:1px dashed #D9CBB0; border-radius:12px; background:#FCF8EF; margin-top: 14px; }
+  .fail-toggle .txt { flex:1; }
+  .fail-toggle .txt .t { font-size:12.5px; font-weight:600; font-family:'Space Grotesk'; }
+  .fail-toggle .txt .h { font-size:10.5px; color:#8A7A56; }
+  .switch { position:relative; width:42px;height:24px; flex-shrink:0; }
+  .switch input { opacity:0; width:0;height:0; }
+  .switch .track { position:absolute; inset:0; background:#D6CDB8; border-radius:20px; transition:.15s; }
+  .switch .track::before { content:''; position:absolute; width:18px;height:18px; left:3px;top:3px; background:#fff; border-radius:50%; transition:.15s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  .switch input:checked + .track { background: var(--danger); }
+  .switch input:checked + .track::before { transform: translateX(18px); }
+
+  .status-pill { font-family:'JetBrains Mono'; font-size:11px; font-weight:600; padding:4px 9px; border-radius:20px; }
+  .status-pill.confirmed { background: var(--green-soft); color: var(--green-deep); }
+  .status-pill.pending { background: var(--amber-soft); color: var(--amber); }
+  .status-pill.cancelled { background: var(--danger-soft); color: var(--danger); }
+
+  /* my bookings link + list */
+  .mini-link { font-family:'JetBrains Mono'; font-size:12px; color:var(--green-mid); font-weight:600; cursor:pointer; }
+  .booking-row { display:flex; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid var(--line); }
+  .booking-row:last-child { border-bottom:none; }
+  .booking-row .cal { width:44px;height:44px;border-radius:11px; background:var(--green-soft); display:grid;place-items:center; flex-shrink:0; text-align:center; }
+  .booking-row .cal .m { font-size:9px; color:var(--green-mid); font-weight:700; text-transform:uppercase; }
+  .booking-row .cal .d { font-family:'Space Grotesk'; font-weight:700; font-size:16px; line-height:1; color:var(--green-deep); }
+  .booking-row .bd { flex:1; min-width:0; }
+  .booking-row .bd .a { font-family:'Space Grotesk'; font-weight:600; font-size:14px; }
+  .booking-row .bd .b { font-size:11.5px; color:var(--muted); font-family:'JetBrains Mono'; }
+
+  .fade-in { animation: fade .25s ease; }
+  @keyframes fade { from { opacity:0; transform: translateY(6px);} to {opacity:1; transform:none;} }
+
+  /* toast */
+  .toast-wrap { position:absolute; left:0; right:0; bottom:88px; display:flex; justify-content:center; pointer-events:none; z-index:50; }
+  .toast { background:#16211C; color:#fff; font-size:12.5px; padding:10px 16px; border-radius:22px; box-shadow:0 8px 24px rgba(0,0,0,.25); opacity:0; transform:translateY(10px); transition:.2s; max-width:88%; text-align:center; }
+  .toast.show { opacity:1; transform:none; }
+
+  .hidden { display:none !important; }
+  .step-dots { display:flex; gap:6px; justify-content:center; margin: 2px 0 4px; }
+  .step-dots i { width:7px;height:7px;border-radius:50%; background:var(--green-line); }
+  .step-dots i.on { background: var(--green); width:20px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <!-- LINE-style header -->
+  <div class="liff-bar">
+    <div class="logo">F</div>
+    <div>
+      <div class="title">Fairway Club</div>
+      <div class="sub">Indoor Golf · Bangkok</div>
+    </div>
+    <div class="via">LINE&nbsp;LIFF<br/>demo</div>
+  </div>
+  <div class="demo-tag">◆ DEMO — mock data, no real payment · shared state syncs to staff dashboard</div>
+
+  <div class="scroll" id="scroll">
+    <!-- ============ SCREEN 1: PICK ============ -->
+    <section id="screen-pick" class="pad fade-in">
+      <div class="eyebrow">Book a bay</div>
+      <h1 class="screen-h">Reserve your session</h1>
+      <p class="screen-sub">09:00–21:00 · book 30 min up to 3 hrs · we auto-assign a bay. <span class="mini-link" id="viewMine">View my bookings ›</span></p>
+
+      <div class="section-label">Choose a day</div>
+      <div class="date-strip" id="dateStrip"></div>
+
+      <div class="section-label" style="margin-bottom:13px">How long?</div>
+      <div class="dur-strip" id="durStrip"></div>
+
+      <div class="section-label">Available start times</div>
+      <div class="slot-grid" id="slotGrid"></div>
+      <div class="legend">
+        <span><i style="background:var(--green-soft);border:1.5px solid var(--green-line)"></i> Open</span>
+        <span><i style="background:var(--green)"></i> Selected</span>
+        <span><i style="background:#F1F2F1"></i> Booked / blocked</span>
+      </div>
+      <div style="height:12px"></div>
+    </section>
+
+    <!-- ============ SCREEN 2: DETAILS ============ -->
+    <section id="screen-details" class="pad hidden">
+      <div class="step-dots"><i class="on"></i><i></i><i></i></div>
+      <div class="eyebrow">Step 1 of 3</div>
+      <h1 class="screen-h">Your details</h1>
+      <p class="screen-sub">We'll send confirmation to your LINE.</p>
+
+      <div class="card pad" style="margin-top:16px">
+        <div class="kv"><span class="k">Bay</span><span class="v" id="d-room"></span></div>
+        <div class="kv"><span class="k">Date</span><span class="v" id="d-date"></span></div>
+        <div class="kv"><span class="k">Time</span><span class="v mono" id="d-time"></span></div>
+        <div class="kv"><span class="k">Duration</span><span class="v" id="d-dur"></span></div>
+        <div class="kv" id="d-promo-row" style="display:none"><span class="k">Promo</span><span class="v" style="color:var(--amber)" id="d-promo"></span></div>
+        <div class="kv"><span class="k">Total</span><span class="v" id="d-price"></span></div>
+      </div>
+
+      <div class="section-label">Name</div>
+      <input id="in-name" class="field" placeholder="e.g. Krit S." autocomplete="off" />
+      <div class="section-label">Phone</div>
+      <input id="in-phone" class="field" placeholder="08X-XXX-XXXX" inputmode="tel" />
+
+      <div class="banner-note info" style="margin-top:16px">
+        <span>◷</span><div><b>5-minute buffer</b> is reserved after each session for bay reset — this is a locked-in rule, not adjustable.</div>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 3: PAYMENT ============ -->
+    <section id="screen-pay" class="pad hidden">
+      <div class="step-dots"><i></i><i class="on"></i><i></i></div>
+      <div class="eyebrow">Step 2 of 3 · Payment</div>
+      <h1 class="screen-h">Transfer &amp; send slip</h1>
+      <p class="screen-sub">Scan to pay, then upload your transfer slip.</p>
+
+      <div class="qr-box" style="margin-top:16px">
+        <div class="qr-ph"></div>
+        <div class="qr-cap">PromptPay · <span id="pay-amount"></span> · ref <span id="pay-ref"></span></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="bank">
+          <div class="badge">KB</div>
+          <div class="info">
+            <div class="name">Kasikorn Bank</div>
+            <div class="acct">123-4-56789-0</div>
+            <div class="who">Fairway Club Co., Ltd.</div>
+          </div>
+          <button class="copy-btn" id="copyAcct">Copy</button>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="uploadZone">
+        <div class="ic">📄</div>
+        <div class="t">Upload transfer slip</div>
+        <div class="h">Tap to attach a screenshot (mocked)</div>
+      </div>
+
+      <!-- Demo control: force the slip to fail verification -->
+      <div class="fail-toggle">
+        <div class="txt">
+          <div class="t">⚙ Demo: force slip mismatch</div>
+          <div class="h">On = verification will fail &amp; auto-cancel the booking</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="failToggle" /><span class="track"></span></label>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 4: VERIFYING ============ -->
+    <section id="screen-verify" class="hidden">
+      <div class="verify-state" style="padding-top:70px">
+        <div class="spinner"></div>
+        <div class="t">Verifying your slip…</div>
+        <div class="h">Matching your transfer against booking <span id="verify-ref" style="font-family:'JetBrains Mono'"></span></div>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 5: SUCCESS ============ -->
+    <section id="screen-success" class="pad hidden">
+      <div style="text-align:center; padding-top:14px">
+        <div class="result-icon ok">✓</div>
+        <div class="eyebrow" style="text-align:center">Step 3 of 3 · Confirmed</div>
+        <h1 class="screen-h" style="text-align:center; margin-top:2px">You're booked!</h1>
+        <p class="screen-sub" style="text-align:center">A confirmation was sent to your LINE.</p>
+        <div style="margin-top:16px"><span class="ref-badge" id="succ-ref"></span></div>
+      </div>
+      <div class="card pad" style="margin-top:20px">
+        <div class="kv"><span class="k">Status</span><span class="status-pill confirmed">CONFIRMED</span></div>
+        <div class="kv"><span class="k">Bay</span><span class="v" id="succ-room"></span></div>
+        <div class="kv"><span class="k">Date</span><span class="v" id="succ-date"></span></div>
+        <div class="kv"><span class="k">Time</span><span class="v mono" id="succ-time"></span></div>
+        <div class="kv"><span class="k">Paid</span><span class="v" id="succ-price"></span></div>
+      </div>
+      <div class="banner-note info" style="margin-top:14px">
+        <span>↔</span><div>This booking now appears live on the <b>staff dashboard</b> — check the upcoming-bookings timeline.</div>
+      </div>
+      <div style="margin-top:20px; display:flex; gap:10px">
+        <button class="btn ghost" style="flex:1" id="succMine">My bookings</button>
+        <button class="btn" style="flex:1.4" id="succAnother">Book another ›</button>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN 6: FAILURE ============ -->
+    <section id="screen-fail" class="pad hidden">
+      <div style="text-align:center; padding-top:14px">
+        <div class="result-icon bad">✕</div>
+        <div class="eyebrow" style="text-align:center; color:var(--danger)">Slip not matched</div>
+        <h1 class="screen-h" style="text-align:center; margin-top:2px">Booking cancelled</h1>
+        <p class="screen-sub" style="text-align:center">The transfer slip didn't match the amount or reference. No charge was made.</p>
+        <div style="margin-top:16px"><span class="ref-badge" style="background:var(--danger-soft); color:var(--danger)" id="fail-ref"></span></div>
+      </div>
+      <div class="banner-note" style="margin-top:20px">
+        <span>⚠</span><div>The slot has been <b>released</b>. Please rebook — it's available again for you and other guests.</div>
+      </div>
+      <div style="margin-top:20px"><button class="btn block" id="rebookBtn">Rebook a slot</button></div>
+    </section>
+
+    <!-- ============ SCREEN 7: MY BOOKINGS ============ -->
+    <section id="screen-mine" class="pad hidden">
+      <div class="eyebrow">History</div>
+      <h1 class="screen-h">My bookings</h1>
+      <p class="screen-sub">Updates live when staff approve or reject a slip.</p>
+      <div class="card pad" style="margin-top:16px" id="mineList"></div>
+      <div style="margin-top:18px"><button class="btn ghost block" id="backFromMine">‹ Back to booking</button></div>
+    </section>
+  </div>
+
+  <!-- Sticky CTA -->
+  <div class="cta-bar" id="ctaBar">
+    <div class="cta-summary" id="ctaSummary">
+      <div class="l1" id="cta-l1">Select a time</div>
+      <div class="l2" id="cta-l2">Pick a day, bay &amp; slot to continue</div>
+    </div>
+    <button class="btn" id="ctaBtn" disabled>Continue</button>
+  </div>
+
+  <div class="toast-wrap"><div class="toast" id="toast"></div></div>
+</div>
+
+<style>
+  .field { width:100%; padding:13px 14px; border:1.5px solid var(--line); border-radius:12px; font-family:'Inter'; font-size:15px; background:#fff; margin-top:-2px; }
+  .field:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgba(31,92,61,.1); }
+</style>
+
+<script src="data-layer.js"></script>
+<script>
+(function () {
+  'use strict';
+  const DL = window.DataLayer;
+  DL.seedIfEmpty();
+
+  // ---- selection state ----
+  // `room` is auto-assigned (not chosen by the customer) once a start is picked.
+  const state = { date: DL.todayYmd(), room: null, duration: 60, start: null, lastBooking: null };
+
+  const $ = function (id) { return document.getElementById(id); };
+  const screens = ['pick','details','pay','verify','success','fail','mine'];
+  function show(name) {
+    screens.forEach(function (s) { $('screen-' + s).classList.toggle('hidden', s !== name); });
+    $('ctaBar').classList.toggle('hidden', ['verify','success','fail','mine'].indexOf(name) !== -1);
+    $('scroll').scrollTop = 0;
+  }
+
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._tm); t._tm = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  // ---- render date strip ----
+  function renderDates() {
+    const strip = $('dateStrip'); strip.innerHTML = '';
+    DL.windowDates().forEach(function (d, i) {
+      const iso = DL.ymd(d);
+      const chip = document.createElement('div');
+      chip.className = 'date-chip' + (iso === state.date ? ' active' : '') + (i === 0 ? ' today-dot' : '');
+      chip.innerHTML = '<div class="dow">' + (i === 0 ? 'Today' : DOW[d.getDay()]) + '</div>' +
+                       '<div class="dnum">' + d.getDate() + '</div>' +
+                       '<div class="mon">' + MON[d.getMonth()] + '</div>';
+      chip.onclick = function () { state.date = iso; state.start = null; renderAll(); };
+      strip.appendChild(chip);
+    });
+  }
+
+  // ---- render duration chips ----
+  function renderDurations() {
+    const strip = $('durStrip'); strip.innerHTML = '';
+    DL.CONFIG.DURATIONS.forEach(function (dur) {
+      const promo = dur >= DL.CONFIG.PROMO_FREE_LAST_HOUR_AT;
+      const price = DL.priceFor(dur);
+      const full = DL.priceWithoutPromo(dur);
+      const chip = document.createElement('div');
+      chip.className = 'dur-chip' + (dur === state.duration ? ' active' : '');
+      chip.innerHTML =
+        (promo ? '<div class="promo-tag">LAST HR FREE</div>' : '') +
+        '<div class="dl">' + DL.durationLabel(dur) + '</div>' +
+        '<div class="dp">' + (promo ? '<span class="strike">' + DL.money(full) + '</span>' : '') + DL.money(price) + '</div>';
+      chip.onclick = function () {
+        state.duration = dur;
+        // keep the selected start only if it still fits the new duration in some bay
+        if (state.start != null && !DL.isAnyAvailable(state.date, state.start, dur)) { state.start = null; state.room = null; }
+        renderAll();
+      };
+      strip.appendChild(chip);
+    });
+  }
+
+  // ---- render start times ----
+  // Bays are interchangeable: a start is offered if the whole duration fits in
+  // AT LEAST ONE bay. We surface scarcity ("1 bay left") but never ask the
+  // customer to choose — a bay is auto-assigned when they pick a start.
+  function renderSlots() {
+    const grid = $('slotGrid'); grid.innerHTML = '';
+    DL.slotStarts().forEach(function (s) {
+      const free = DL.baysAvailable(state.date, s, state.duration);
+      const avail = free.length > 0;
+      const past = DL.isPast(state.date, s);
+      const overClose = s + state.duration > DL.CONFIG.CLOSE_MIN;
+      const el = document.createElement('div');
+      const selected = state.start === s;
+      el.className = 'slot' + (!avail ? ' unavailable' : '') + (selected ? ' selected' : '');
+      const scarce = avail && free.length === 1;
+      el.innerHTML = '<div class="t">' + DL.timeLabel(s) + '</div>' +
+                     '<div class="s' + (scarce ? ' scarce' : '') + '">' +
+                       (avail ? ('ends ' + DL.timeLabel(s + state.duration) + (scarce ? ' · 1 left' : '')) : (past ? 'past' : (overClose ? 'too late' : 'full'))) +
+                     '</div>';
+      if (avail) el.onclick = function () {
+        if (state.start === s) { state.start = null; state.room = null; }
+        else { state.start = s; state.room = DL.firstAvailableBay(state.date, s, state.duration); }
+        renderAll();
+      };
+      grid.appendChild(el);
+    });
+  }
+
+  // ---- CTA state ----
+  function renderCTA() {
+    const btn = $('ctaBtn');
+    if (state.start == null) {
+      $('cta-l1').textContent = 'Select a start time';
+      $('cta-l2').textContent = DL.durationLabel(state.duration) + ' session · ' + DL.money(DL.priceFor(state.duration));
+      btn.disabled = true;
+    } else {
+      $('cta-l1').textContent = DL.rangeLabel(state.start, state.duration) + ' · ' + DL.durationLabel(state.duration);
+      $('cta-l2').textContent = friendlyDate(state.date) + ' · ' + DL.money(DL.priceFor(state.duration)) + ' · bay auto-assigned';
+      btn.disabled = false;
+    }
+  }
+
+  function friendlyDate(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    return DOW[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()];
+  }
+
+  function renderAll() { renderDates(); renderDurations(); renderSlots(); renderCTA(); }
+
+  // ---- CTA click: pick -> details ----
+  $('ctaBtn').onclick = function () { goDetails(); };
+
+  function goDetails() {
+    $('d-room').textContent = DL.CONFIG.ROOM_NAMES[state.room] + ' · auto-assigned';
+    $('d-date').textContent = friendlyDate(state.date);
+    $('d-time').textContent = DL.rangeLabel(state.start, state.duration);
+    $('d-dur').textContent = DL.durationLabel(state.duration);
+    const promo = state.duration >= DL.CONFIG.PROMO_FREE_LAST_HOUR_AT;
+    $('d-promo-row').style.display = promo ? 'flex' : 'none';
+    if (promo) $('d-promo').textContent = 'Last hour free (−' + DL.money(DL.priceWithoutPromo(state.duration) - DL.priceFor(state.duration)) + ')';
+    $('d-price').textContent = DL.money(DL.priceFor(state.duration));
+    show('details');
+    // repurpose CTA button
+    setCTA('Continue to payment ›', function () {
+      const name = $('in-name').value.trim();
+      if (!name) { toast('Please enter your name'); return; }
+      goPay(name);
+    });
+    $('cta-l1').textContent = 'Confirm details';
+    $('cta-l2').textContent = 'Then transfer & send slip';
+  }
+
+  function setCTA(label, fn) {
+    const btn = $('ctaBtn'); btn.disabled = false; btn.textContent = label; btn.onclick = fn;
+  }
+
+  // ---- details -> payment ----
+  let pendingBooking = null; // created at "send slip" moment
+  let draft = null;
+
+  function goPay(name) {
+    draft = { name: name, phone: $('in-phone').value.trim() };
+    $('pay-amount').textContent = DL.money(DL.priceFor(state.duration));
+    // preview ref shown before actual creation is cosmetic; real code is minted on submit
+    $('pay-ref').textContent = 'on submit';
+    $('uploadZone').classList.remove('filled');
+    $('uploadZone').innerHTML = '<div class="ic">📄</div><div class="t">Upload transfer slip</div><div class="h">Tap to attach a screenshot (mocked)</div>';
+    slipAttached = false;
+    show('pay');
+    $('cta-l1').textContent = 'Send slip';
+    $('cta-l2').textContent = 'Upload your slip, then verify';
+    setCTA('Send slip →', onSendSlip);
+    $('ctaBtn').disabled = true;
+  }
+
+  let slipAttached = false;
+  $('uploadZone').onclick = function () {
+    slipAttached = true;
+    this.classList.add('filled');
+    this.innerHTML = '<div class="slip-preview"><div class="thumb">🧾</div><div style="text-align:left"><div class="t">slip_' + Date.now().toString().slice(-6) + '.jpg</div><div class="h">Attached · tap “Send slip” to verify</div></div></div>';
+    $('ctaBtn').disabled = false;
+    toast('Slip attached (mock)');
+  };
+
+  $('copyAcct').onclick = function () {
+    if (navigator.clipboard) navigator.clipboard.writeText('123-4-56789-0').catch(function(){});
+    toast('Account number copied');
+  };
+
+  // ---- send slip -> create pending booking -> verify (2s) -> success/fail ----
+  function onSendSlip() {
+    // Re-verify the auto-assigned bay is still free (it may have been taken
+    // while the customer was on the details/payment screens). Reassign if so.
+    if (state.room == null || !DL.isRangeAvailable(state.room, state.date, state.start, state.duration)) {
+      const bay = DL.firstAvailableBay(state.date, state.start, state.duration);
+      if (bay == null) { toast('Sorry — that time just filled up. Please pick another.'); resetToPick(); return; }
+      state.room = bay;
+    }
+    // Create the booking in shared state as pending-payment RIGHT NOW so it
+    // appears in the dashboard's Pending Slips queue during verification.
+    pendingBooking = DL.createPendingBooking({
+      room: state.room, date: state.date, start: state.start, duration: state.duration,
+      customerName: draft.name, phone: draft.phone, source: 'customer',
+    });
+    state.lastBooking = pendingBooking;
+
+    $('verify-ref').textContent = pendingBooking.ref;
+    show('verify');
+
+    const willFail = $('failToggle').checked;
+    setTimeout(function () {
+      if (willFail) {
+        // Reflect failure in shared state — booking is cancelled, slot released.
+        DL.rejectSlip(pendingBooking.id);
+        renderFail(pendingBooking);
+      } else {
+        DL.approveSlip(pendingBooking.id);
+        renderSuccess(pendingBooking);
+      }
+    }, 2000);
+  }
+
+  function renderSuccess(b) {
+    $('succ-ref').textContent = b.ref;
+    $('succ-room').textContent = DL.CONFIG.ROOM_NAMES[b.room];
+    $('succ-date').textContent = friendlyDate(b.date);
+    $('succ-time').textContent = DL.rangeLabel(b.start, DL.durOf(b)) + ' (' + DL.durationLabel(DL.durOf(b)) + ')';
+    $('succ-price').textContent = DL.money(b.price);
+    show('success');
+  }
+
+  function renderFail(b) {
+    $('fail-ref').textContent = b.ref;
+    show('fail');
+  }
+
+  // success / fail screens have their own in-page buttons (CTA bar is hidden here)
+  $('rebookBtn').onclick = function () { resetToPick(); };
+  $('succAnother').onclick = function () { resetToPick(); };
+  $('succMine').onclick = function () { renderMine(); show('mine'); };
+
+  function resetToPick() {
+    state.start = null; state.room = null;
+    $('in-name').value = ''; $('in-phone').value = '';
+    $('failToggle').checked = false;
+    $('ctaBtn').onclick = function () { goDetails(); };
+    show('pick');
+    renderAll();
+  }
+
+  // ---- My bookings ----
+  $('viewMine').onclick = function () { renderMine(); show('mine'); };
+  $('backFromMine').onclick = function () { resetToPick(); };
+
+  function renderMine() {
+    const list = $('mineList');
+    // In the demo, "my bookings" = customer-sourced bookings. Sort recent first.
+    const mine = DL.getBookings().filter(function (b) { return b.source === 'customer'; })
+      .sort(function (a, b) { return (b.createdAt || '').localeCompare(a.createdAt || ''); });
+    if (!mine.length) { list.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px 0;font-size:13px">No bookings yet.</div>'; return; }
+    list.innerHTML = '';
+    mine.forEach(function (b) {
+      const d = new Date(b.date + 'T00:00:00');
+      const row = document.createElement('div');
+      row.className = 'booking-row';
+      const pillClass = b.status === 'confirmed' ? 'confirmed' : (b.status === 'pending-payment' ? 'pending' : 'cancelled');
+      const pillText = b.status === 'confirmed' ? 'CONFIRMED' : (b.status === 'pending-payment' ? 'VERIFYING' : 'CANCELLED');
+      row.innerHTML =
+        '<div class="cal"><div class="m">' + MON[d.getMonth()] + '</div><div class="d">' + d.getDate() + '</div></div>' +
+        '<div class="bd"><div class="a">' + DL.CONFIG.ROOM_NAMES[b.room] + ' · ' + DL.rangeLabel(b.start, DL.durOf(b)) + '</div>' +
+        '<div class="b">' + b.ref + '</div></div>' +
+        '<span class="status-pill ' + pillClass + '">' + pillText + '</span>';
+      list.appendChild(row);
+    });
+  }
+
+  // ---- live sync: re-render whatever's on screen when shared state changes ----
+  DL.onChange(function () {
+    // Refresh slot availability if we're on the picker (a staff block/walk-in
+    // could have taken the slot we're looking at).
+    if (!$('screen-pick').classList.contains('hidden')) {
+      // if our selected slot got taken by someone else, clear it;
+      // if only our auto-assigned bay was taken but another is free, reassign.
+      if (state.start != null) {
+        if (!DL.isAnyAvailable(state.date, state.start, state.duration)) {
+          state.start = null; state.room = null; toast('That slot was just taken — pick another');
+        } else if (state.room == null || !DL.isRangeAvailable(state.room, state.date, state.start, state.duration)) {
+          state.room = DL.firstAvailableBay(state.date, state.start, state.duration);
+        }
+      }
+      renderAll();
+    }
+    if (!$('screen-mine').classList.contains('hidden')) renderMine();
+  });
+
+  // ---- init ----
+  renderAll();
+})();
+</script>
+</body>
+</html>

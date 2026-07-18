@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fairway Club · Staff Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green:        #1F5C3D;
+    --green-deep:   #143C29;
+    --green-mid:    #2E7D51;
+    --green-soft:   #EAF1EC;
+    --green-line:   #CFE0D5;
+    --ink:          #16211C;
+    --muted:        #66746B;
+    --line:         #E7ECE8;
+    --bg:           #F0F3F0;
+    --card:         #FFFFFF;
+    --danger:       #B4433A;
+    --danger-soft:  #FBEDEB;
+    --amber:        #B07A16;
+    --amber-soft:   #FBF3E1;
+    --blue:         #35617F;
+    --blue-soft:    #E9F0F4;
+    --radius:       16px;
+    --shadow:       0 1px 2px rgba(20,60,41,.04), 0 6px 20px rgba(20,60,41,.05);
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; }
+
+  /* ---- Top bar ---- */
+  .topbar { background: var(--green-deep); color: #EAF1EC; padding: 0 26px; height: 62px; display:flex; align-items:center; gap:14px; position:sticky; top:0; z-index:40; }
+  .topbar .logo { width:36px;height:36px;border-radius:10px; background: linear-gradient(135deg, var(--green-mid), var(--green)); display:grid;place-items:center; font-family:'Space Grotesk'; font-weight:700; font-size:18px; color:#fff; }
+  .topbar .brand { font-family:'Space Grotesk'; font-weight:600; font-size:16px; line-height:1.1; }
+  .topbar .brand .s { font-size:11px; opacity:.65; font-weight:400; font-family:'JetBrains Mono'; }
+  .topbar .nav { display:flex; gap:4px; margin-left:22px; }
+  .topbar .nav a { color:#C7D6CC; font-size:13.5px; padding:7px 13px; border-radius:9px; text-decoration:none; font-weight:500; }
+  .topbar .nav a.active { background: rgba(255,255,255,.12); color:#fff; }
+  .topbar .right { margin-left:auto; display:flex; align-items:center; gap:14px; }
+  .live-dot { display:flex; align-items:center; gap:7px; font-family:'JetBrains Mono'; font-size:11px; color:#AEC6B6; }
+  .live-dot i { width:8px;height:8px;border-radius:50%; background:#5FD08A; box-shadow:0 0 0 0 rgba(95,208,138,.6); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(95,208,138,.5)} 70%{box-shadow:0 0 0 7px rgba(95,208,138,0)} 100%{box-shadow:0 0 0 0 rgba(95,208,138,0)} }
+  .avatar { width:34px;height:34px;border-radius:50%; background:var(--green-mid); display:grid;place-items:center; font-family:'Space Grotesk'; font-weight:600; font-size:13px; color:#fff; }
+
+  .demo-strip { background:#FFF7E6; color:#7A5B12; font-size:12px; font-family:'JetBrains Mono'; padding:7px 26px; text-align:center; border-bottom:1px solid #F0E4C4; }
+  .demo-strip b { font-weight:600; }
+
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 24px 26px 60px; }
+
+  .page-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+  .page-head h1 { font-family:'Space Grotesk'; font-size:25px; font-weight:600; letter-spacing:-.015em; }
+  .page-head .date { color:var(--muted); font-size:13.5px; margin-top:3px; font-family:'JetBrains Mono'; }
+  .head-actions { display:flex; gap:10px; }
+
+  .btn { font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; border:none; cursor:pointer; background:var(--green); color:#fff; padding:11px 16px; border-radius:11px; transition:.12s; display:inline-flex; align-items:center; gap:7px; }
+  .btn:hover { background: var(--green-deep); }
+  .btn.ghost { background:#fff; color:var(--green-deep); border:1.5px solid var(--green-line); }
+  .btn.ghost:hover { background: var(--green-soft); }
+  .btn.sm { padding:7px 12px; font-size:12.5px; border-radius:9px; }
+  .btn.approve { background: var(--green); }
+  .btn.reject { background:#fff; color:var(--danger); border:1.5px solid #EBD3D0; }
+  .btn.reject:hover { background: var(--danger-soft); }
+  .btn.danger { background: var(--danger); }
+  .btn.danger:hover { background:#973830; }
+
+  /* ---- KPI cards ---- */
+  .kpi-row { display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; margin-bottom:22px; }
+  @media (max-width: 900px){ .kpi-row{ grid-template-columns: repeat(2,1fr);} }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px 18px 16px; box-shadow:var(--shadow); position:relative; overflow:hidden; }
+  .kpi .top { display:flex; align-items:center; justify-content:space-between; }
+  .kpi .label { font-family:'JetBrains Mono'; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; }
+  .kpi .ic { width:34px;height:34px;border-radius:10px; display:grid;place-items:center; font-size:16px; }
+  .kpi .val { font-family:'Space Grotesk'; font-weight:700; font-size:32px; letter-spacing:-.02em; margin-top:12px; line-height:1; }
+  .kpi .sub { font-size:12px; color:var(--muted); margin-top:7px; }
+  .kpi .sub b { color:var(--green-mid); font-weight:600; }
+  .kpi.accent-g .ic { background:var(--green-soft); }
+  .kpi.accent-b .ic { background:var(--blue-soft); }
+  .kpi.accent-a .ic { background:var(--amber-soft); }
+  .util-bar { height:6px; background:var(--line); border-radius:4px; margin-top:11px; overflow:hidden; }
+  .util-bar i { display:block; height:100%; background: linear-gradient(90deg,var(--green-mid),var(--green)); border-radius:4px; transition:width .4s; }
+  .kpi .badge-n { background:var(--danger); color:#fff; font-family:'JetBrains Mono'; font-size:12px; font-weight:600; min-width:22px; height:22px; padding:0 6px; border-radius:11px; display:grid;place-items:center; }
+
+  /* ---- layout grid ---- */
+  .grid { display:grid; grid-template-columns: 1fr 360px; gap:20px; align-items:start; }
+  @media (max-width: 1080px){ .grid{ grid-template-columns:1fr; } }
+
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+  .panel-head { display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid var(--line); }
+  .panel-head h2 { font-family:'Space Grotesk'; font-size:16px; font-weight:600; display:flex; align-items:center; gap:9px; }
+  .panel-head .hint { font-size:12px; color:var(--muted); font-family:'JetBrains Mono'; }
+
+  /* ---- day nav for timeline ---- */
+  .day-nav { display:flex; gap:6px; align-items:center; }
+  .day-nav button { width:28px;height:28px; border:1.5px solid var(--line); background:#fff; border-radius:8px; cursor:pointer; font-size:14px; color:var(--muted); display:grid;place-items:center; }
+  .day-nav button:hover { border-color:var(--green-line); color:var(--green-deep); }
+  .day-nav .lbl { font-family:'JetBrains Mono'; font-size:12.5px; min-width:120px; text-align:center; font-weight:600; }
+
+  /* ---- timeline ---- */
+  .tl-hint { display:flex; gap:16px; align-items:center; flex-wrap:wrap; padding:10px 18px; border-bottom:1px solid var(--line); font-size:11.5px; color:var(--muted); }
+  .tl-hint span { display:flex; align-items:center; gap:6px; }
+  .tl-hint .sw { width:12px;height:12px;border-radius:4px; display:inline-block; }
+  .tl-hint .sw.confirmed { background:var(--green-soft); border-left:3px solid var(--green); }
+  .tl-hint .sw.pending { background:var(--amber-soft); border-left:3px solid var(--amber); }
+  .tl-hint .sw.blocked { background: repeating-linear-gradient(135deg,#EEF0EE,#EEF0EE 4px,#E4E7E4 4px,#E4E7E4 8px); border-left:3px solid #9AA6A0; }
+  .tl-hint .tip { margin-left:auto; font-family:'JetBrains Mono'; font-size:10.5px; }
+  .tl-hint .tip b { color:var(--green-deep); font-weight:600; }
+  .timeline { padding: 8px 8px 14px; overflow-x:auto; max-height:560px; overflow-y:auto; }
+  .tl-grid { display:grid; grid-template-columns: 58px 1fr 1fr; gap:0; min-width: 520px; }
+  .tl-corner { }
+  .tl-roomhead { text-align:center; font-family:'JetBrains Mono'; font-size:11.5px; font-weight:600; color:var(--green-deep); padding:8px 0; border-bottom:1px solid var(--line); position:sticky; top:0; background:#fff; }
+  .tl-hour { font-family:'JetBrains Mono'; font-size:10.5px; color:var(--muted); text-align:right; padding:0 10px 0 0; height:34px; display:flex; align-items:flex-start; justify-content:flex-end; transform:translateY(-6px); }
+  .tl-cell { border-top:1px dashed var(--line); border-left:1px solid var(--line); height:34px; padding:2px; position:relative; }
+  .tl-cell:hover .add-here { opacity:1; }
+  .add-here { position:absolute; inset:3px; border-radius:8px; border:1.5px dashed var(--green-line); color:var(--green-mid); font-size:11px; display:grid;place-items:center; opacity:0; cursor:pointer; transition:.12s; font-family:'JetBrains Mono'; background: rgba(234,241,236,.5); }
+  .add-here:hover { background: var(--green-soft); }
+  .evt { position:absolute; top:2px; left:2px; right:2px; z-index:2; border-radius:7px; padding:2px 8px; cursor:pointer; overflow:hidden; display:flex; flex-direction:column; justify-content:center; transition:.12s; }
+  .evt:hover { z-index:3; transform: translateY(-1px); box-shadow:0 4px 10px rgba(0,0,0,.1); }
+  .evt .n { font-family:'Space Grotesk'; font-weight:600; font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.25; }
+  .evt .r { font-family:'JetBrains Mono'; font-size:9px; opacity:.8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
+  .evt.confirmed { background:var(--green-soft); border-left:3px solid var(--green); color:var(--green-deep); }
+  .evt.pending { background:var(--amber-soft); border-left:3px solid var(--amber); color:#6E5410; }
+  .evt.blocked { background: repeating-linear-gradient(135deg,#EEF0EE,#EEF0EE 6px,#E4E7E4 6px,#E4E7E4 12px); border-left:3px solid #9AA6A0; color:#5B6B62; }
+
+  /* ---- pending slips queue ---- */
+  .queue { padding: 6px 14px 14px; }
+  .slip { border:1px solid var(--line); border-radius:13px; padding:13px; margin-top:12px; background:#fff; }
+  .slip.flash { animation: flashIn .6s ease; }
+  @keyframes flashIn { from { background:var(--amber-soft); } to { background:#fff; } }
+  .slip .row1 { display:flex; align-items:center; gap:10px; }
+  .slip .who { font-family:'Space Grotesk'; font-weight:600; font-size:14px; }
+  .slip .ref { font-family:'JetBrains Mono'; font-size:11px; color:var(--muted); }
+  .slip .amt { margin-left:auto; font-family:'Space Grotesk'; font-weight:700; font-size:15px; color:var(--green-deep); }
+  .slip .meta { font-size:12px; color:var(--muted); margin-top:7px; display:flex; gap:12px; flex-wrap:wrap; }
+  .slip .meta span { display:flex; align-items:center; gap:5px; }
+  .slip .mock-slip { display:flex; gap:10px; align-items:center; margin-top:11px; padding:9px; background:var(--bg); border-radius:9px; }
+  .slip .mock-slip .th { width:34px;height:42px;border-radius:5px; background:linear-gradient(160deg,#fff,#e4ebe6); border:1px solid var(--green-line); display:grid;place-items:center; font-size:16px; }
+  .slip .mock-slip .cap { font-size:11px; color:var(--muted); font-family:'JetBrains Mono'; }
+  .slip .actions { display:flex; gap:8px; margin-top:12px; }
+  .slip .actions .btn { flex:1; justify-content:center; }
+  .queue-empty { text-align:center; color:var(--muted); font-size:13px; padding:34px 10px; }
+  .queue-empty .ic { font-size:30px; opacity:.5; }
+
+  /* ---- recent activity list (below timeline) ---- */
+  .list-panel { margin-top:20px; }
+  .brow { display:grid; grid-template-columns: 96px 1fr 90px 130px 96px; gap:10px; align-items:center; padding:12px 18px; border-top:1px solid var(--line); font-size:13px; }
+  .brow.head { font-family:'JetBrains Mono'; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); border-top:none; font-weight:600; }
+  .brow .ref { font-family:'JetBrains Mono'; font-weight:600; font-size:12.5px; }
+  .brow .nm { font-family:'Space Grotesk'; font-weight:600; }
+  .brow .sub { color:var(--muted); font-size:11.5px; }
+  .pill { font-family:'JetBrains Mono'; font-size:10.5px; font-weight:600; padding:4px 9px; border-radius:20px; text-align:center; display:inline-block; }
+  .pill.confirmed { background:var(--green-soft); color:var(--green-deep); }
+  .pill.pending { background:var(--amber-soft); color:var(--amber); }
+  .pill.blocked { background:#EEF0EE; color:#5B6B62; }
+  .pill.cancelled { background:var(--danger-soft); color:var(--danger); }
+  .src-tag { font-family:'JetBrains Mono'; font-size:10px; color:var(--muted); }
+
+  /* ---- modal ---- */
+  .modal-bg { position:fixed; inset:0; background:rgba(20,33,28,.5); backdrop-filter:blur(2px); display:none; align-items:center; justify-content:center; z-index:100; padding:20px; }
+  .modal-bg.open { display:flex; }
+  .modal { background:#fff; border-radius:18px; width:100%; max-width:440px; box-shadow:0 20px 60px rgba(0,0,0,.3); overflow:hidden; animation: pop .18s ease; }
+  @keyframes pop { from{ transform:scale(.96); opacity:0;} to{transform:none;opacity:1;} }
+  .modal-head { padding:18px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; }
+  .modal-head h3 { font-family:'Space Grotesk'; font-size:17px; font-weight:600; }
+  .modal-head .x { cursor:pointer; color:var(--muted); font-size:20px; width:30px;height:30px; display:grid;place-items:center; border-radius:8px; }
+  .modal-head .x:hover { background:var(--bg); }
+  .modal-body { padding:20px; }
+  .fld { margin-bottom:14px; }
+  .fld label { font-family:'JetBrains Mono'; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:600; display:block; margin-bottom:6px; }
+  .fld input, .fld select { width:100%; padding:11px 12px; border:1.5px solid var(--line); border-radius:10px; font-family:'Inter'; font-size:14px; background:#fff; }
+  .fld input:focus, .fld select:focus { outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgba(31,92,61,.1); }
+  .fld-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .seg { display:flex; gap:8px; }
+  .seg button { flex:1; padding:10px; border:1.5px solid var(--line); background:#fff; border-radius:10px; font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; cursor:pointer; color:var(--ink); }
+  .seg button.on { background:var(--green-soft); border-color:var(--green); color:var(--green-deep); }
+  .modal-foot { padding:16px 20px; border-top:1px solid var(--line); display:flex; gap:10px; justify-content:flex-end; background:var(--bg); }
+  .form-note { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .slot-warn { font-size:12px; color:var(--danger); margin-top:6px; display:none; }
+
+  /* toast */
+  .toast-wrap { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:200; }
+  .toast { background:#16211C; color:#fff; font-size:13px; padding:11px 18px; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.28); opacity:0; transform:translateY(12px); transition:.2s; display:flex; align-items:center; gap:9px; }
+  .toast.show { opacity:1; transform:none; }
+  .toast .dot { width:8px;height:8px;border-radius:50%; background:#5FD08A; }
+
+  .hidden { display:none !important; }
+  .fresh { animation: freshPulse 1.2s ease; }
+  @keyframes freshPulse { 0%,100%{ box-shadow: var(--shadow);} 30%{ box-shadow:0 0 0 3px rgba(46,125,81,.35);} }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">F</div>
+    <div class="brand">Fairway Club<div class="s">Staff Console</div></div>
+    <div class="nav">
+      <a href="#" class="active">Dashboard</a>
+      <a href="#" onclick="return false" style="opacity:.5">Bookings</a>
+      <a href="#" onclick="return false" style="opacity:.5">Customers</a>
+      <a href="reports.html">Reports</a>
+    </div>
+    <div class="right">
+      <div class="live-dot"><i></i> LIVE · shared state</div>
+      <div class="avatar">SN</div>
+    </div>
+  </div>
+  <div class="demo-strip">◆ <b>DEMO</b> — all figures computed live from shared local state · open <b>customer.html</b> alongside this to see bookings flow in</div>
+
+  <div class="wrap">
+    <div class="page-head">
+      <div>
+        <h1>Today at a glance</h1>
+        <div class="date" id="todayDate"></div>
+      </div>
+      <div class="head-actions">
+        <button class="btn ghost" id="blockBtn">⊘ Block time</button>
+        <button class="btn" id="addBtn">＋ Add walk-in booking</button>
+      </div>
+    </div>
+
+    <!-- KPI cards -->
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="grid">
+      <div>
+        <!-- Timeline -->
+        <div class="panel">
+          <div class="panel-head">
+            <h2>◷ Bookings timeline</h2>
+            <div class="day-nav">
+              <button id="dayPrev">‹</button>
+              <div class="lbl" id="dayLbl"></div>
+              <button id="dayNext">›</button>
+            </div>
+          </div>
+          <div class="tl-hint">
+            <span><i class="sw confirmed"></i> Confirmed</span>
+            <span><i class="sw pending"></i> Pending slip</span>
+            <span><i class="sw blocked"></i> Blocked</span>
+            <span class="tip">Hover an empty slot to <b>＋ add</b> · click a blocked slot to <b>release</b></span>
+          </div>
+          <div class="timeline"><div class="tl-grid" id="tlGrid"></div></div>
+        </div>
+
+        <!-- Upcoming / recent list -->
+        <div class="panel list-panel">
+          <div class="panel-head">
+            <h2>▤ Upcoming bookings</h2>
+            <div class="hint">confirmed · pending · blocked</div>
+          </div>
+          <div id="bookingList"></div>
+        </div>
+      </div>
+
+      <!-- Pending slips queue -->
+      <div class="panel" style="position:sticky; top:82px">
+        <div class="panel-head">
+          <h2>◈ Pending slips</h2>
+          <div class="hint" id="slipCount"></div>
+        </div>
+        <div class="queue" id="queue"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD / BLOCK MODAL -->
+  <div class="modal-bg" id="modalBg">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modalTitle">Add walk-in booking</h3>
+        <div class="x" id="modalX">✕</div>
+      </div>
+      <div class="modal-body">
+        <div class="fld" id="fldName">
+          <label>Customer name</label>
+          <input id="mName" placeholder="e.g. Walk-in guest" />
+        </div>
+        <div class="fld fld-row" id="fldContact">
+          <div id="fldPhone"><label>Phone (optional)</label><input id="mPhone" placeholder="08X-XXX-XXXX" /></div>
+          <div><label>Bay</label>
+            <div class="seg" id="mRoomSeg"></div>
+          </div>
+        </div>
+        <div class="fld-row">
+          <div class="fld"><label>Date</label><select id="mDate"></select></div>
+          <div class="fld"><label>Start time</label><select id="mHour"></select></div>
+        </div>
+        <div class="fld"><label>Duration</label><select id="mDur"></select></div>
+        <div class="slot-warn" id="slotWarn">⚠ That slot is already taken — pick another.</div>
+        <div class="fld" id="fldReason" style="display:none">
+          <label>Reason</label>
+          <input id="mReason" placeholder="e.g. Maintenance / private event" />
+        </div>
+        <div class="form-note" id="modalNote"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn ghost" id="modalCancel">Cancel</button>
+        <button class="btn" id="modalSave">Save booking</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-wrap"><div class="toast" id="toast"><span class="dot"></span><span id="toastMsg"></span></div></div>
+
+<script src="data-layer.js"></script>
+<script>
+(function () {
+  'use strict';
+  const DL = window.DataLayer;
+  DL.seedIfEmpty();
+  const $ = function (id) { return document.getElementById(id); };
+
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const FULLDOW = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  // timeline day index within the 14-day window
+  let dayIdx = 0;
+  const winDates = DL.windowDates();
+
+  function toast(msg) {
+    $('toastMsg').textContent = msg;
+    const t = $('toast'); t.classList.add('show');
+    clearTimeout(t._tm); t._tm = setTimeout(function () { t.classList.remove('show'); }, 2600);
+  }
+
+  function friendly(iso) { const d = new Date(iso+'T00:00:00'); return DOW[d.getDay()]+' '+d.getDate()+' '+MON[d.getMonth()]; }
+
+  // ---------- KPIs ----------
+  let prevPending = null;
+  function renderKPIs() {
+    const k = DL.kpis();
+    $('kpiRow').innerHTML =
+      kpiCard('accent-g','📅','Bookings today', k.bookingsToday, '<b>'+k.occupiedToday+'</b> of '+k.totalSlotsToday+' slots used today') +
+      kpiCard('accent-g','💷','Revenue this week', DL.money(k.revenueThisWeek), 'confirmed bookings, Mon–Sun') +
+      utilCard(k) +
+      pendingCard(k);
+    prevPending = k.pendingSlips;
+  }
+  function kpiCard(cls, ic, label, val, sub) {
+    return '<div class="kpi '+cls+'"><div class="top"><div class="label">'+label+'</div><div class="ic">'+ic+'</div></div>'+
+           '<div class="val">'+val+'</div><div class="sub">'+sub+'</div></div>';
+  }
+  function utilCard(k) {
+    return '<div class="kpi accent-b"><div class="top"><div class="label">Utilization today</div><div class="ic">📊</div></div>'+
+           '<div class="val">'+k.utilizationToday+'%</div>'+
+           '<div class="util-bar"><i style="width:'+k.utilizationToday+'%"></i></div></div>';
+  }
+  function pendingCard(k) {
+    const badge = k.pendingSlips > 0 ? '<div class="badge-n">'+k.pendingSlips+'</div>' : '<div class="ic">✓</div>';
+    const sub = k.pendingSlips > 0 ? 'awaiting slip review →' : 'all slips reviewed';
+    return '<div class="kpi accent-a"><div class="top"><div class="label">Pending slips</div>'+badge+'</div>'+
+           '<div class="val">'+k.pendingSlips+'</div><div class="sub">'+sub+'</div></div>';
+  }
+
+  // ---------- Timeline ----------
+  function renderTimeline() {
+    const iso = DL.ymd(winDates[dayIdx]);
+    $('dayLbl').textContent = (dayIdx===0?'Today · ':'') + friendly(iso);
+    const grid = $('tlGrid');
+    let html = '<div class="tl-corner"></div>';
+    DL.CONFIG.ROOMS.forEach(function(r){ html += '<div class="tl-roomhead">'+DL.CONFIG.ROOM_NAMES[r]+'</div>'; });
+
+    DL.slotStarts().forEach(function(s){
+      html += '<div class="tl-hour">'+DL.timeLabel(s)+'</div>';
+      DL.CONFIG.ROOMS.forEach(function(r){
+        const b = DL.slotBooking(r, iso, s);
+        if (b && b.start === s) {
+          // Booking starts here — render one event card spanning its full duration.
+          const rows = DL.durOf(b) / DL.CONFIG.SLOT_MINUTES;
+          const cls = b.status==='blocked'?'blocked':(b.status==='pending-payment'?'pending':'confirmed');
+          const label = b.status==='blocked' ? '⊘ Blocked' : b.customerName;
+          const tip = b.status==='blocked' ? 'Blocked — click to release' : b.ref+' · '+DL.durationLabel(DL.durOf(b));
+          const sub = b.status==='blocked' ? (b.note||'staff') : b.ref+' · '+DL.durationLabel(DL.durOf(b));
+          html += '<div class="tl-cell"><div class="evt '+cls+'" style="height:'+(rows*34-4)+'px" data-id="'+b.id+'" title="'+tip+'"><div class="n">'+label+'</div><div class="r">'+sub+'</div></div></div>';
+        } else if (b) {
+          // Covered by a booking that started earlier — empty continuation cell.
+          html += '<div class="tl-cell"></div>';
+        } else {
+          const past = DL.isPast(iso,s);
+          html += '<div class="tl-cell">'+(past?'':'<div class="add-here" data-room="'+r+'" data-start="'+s+'" data-date="'+iso+'">＋</div>')+'</div>';
+        }
+      });
+    });
+    grid.innerHTML = html;
+
+    // quick-add from empty cell
+    Array.prototype.forEach.call(grid.querySelectorAll('.add-here'), function(el){
+      el.onclick = function(){ openModal('add', { room:+el.dataset.room, date:el.dataset.date, start:+el.dataset.start }); };
+    });
+    // click event: blocked slots release; others show info
+    Array.prototype.forEach.call(grid.querySelectorAll('.evt'), function(el){
+      el.onclick = function(){
+        const b = DL.getBookings().find(function(x){return x.id===el.dataset.id;});
+        if (!b) return;
+        if (b.status==='blocked') { DL.unblock(b.id); toast('Released '+DL.CONFIG.ROOM_NAMES[b.room]+' · '+DL.rangeLabel(b.start, DL.durOf(b))+' — now bookable'); }
+        else toast(b.ref+' · '+b.customerName+' · '+b.status);
+      };
+    });
+  }
+
+  $('dayPrev').onclick = function(){ if(dayIdx>0){dayIdx--; renderTimeline();} };
+  $('dayNext').onclick = function(){ if(dayIdx<winDates.length-1){dayIdx++; renderTimeline();} };
+
+  // ---------- Pending slips queue ----------
+  function renderQueue() {
+    const pend = DL.getBookings().filter(function(b){ return b.status==='pending-payment'; })
+      .sort(function(a,b){ return (a.createdAt||'').localeCompare(b.createdAt||''); });
+    $('slipCount').textContent = pend.length ? pend.length+' awaiting' : '';
+    const q = $('queue');
+    if (!pend.length) {
+      q.innerHTML = '<div class="queue-empty"><div class="ic">✓</div><div style="margin-top:8px">No slips awaiting review.</div><div style="font-size:11.5px;margin-top:3px">New customer payments appear here.</div></div>';
+      return;
+    }
+    q.innerHTML = '';
+    pend.forEach(function(b){
+      const el = document.createElement('div');
+      el.className = 'slip';
+      el.innerHTML =
+        '<div class="row1"><div><div class="who">'+b.customerName+'</div><div class="ref">'+b.ref+'</div></div>'+
+        '<div class="amt">'+DL.money(b.price)+'</div></div>'+
+        '<div class="meta"><span>◷ '+friendly(b.date)+'</span><span>'+DL.CONFIG.ROOM_NAMES[b.room]+' · '+DL.rangeLabel(b.start, DL.durOf(b))+' ('+DL.durationLabel(DL.durOf(b))+')</span>'+
+        (b.source==='customer'?'<span>via LINE</span>':'<span>manual</span>')+'</div>'+
+        '<div class="mock-slip"><div class="th">🧾</div><div><div style="font-family:\'Space Grotesk\';font-weight:600;font-size:12.5px">transfer_slip.jpg</div><div class="cap">'+DL.money(b.price)+' · PromptPay · uploaded</div></div></div>'+
+        '<div class="actions"><button class="btn approve sm" data-approve="'+b.id+'">✓ Approve</button>'+
+        '<button class="btn reject sm" data-reject="'+b.id+'">✕ Reject</button></div>';
+      q.appendChild(el);
+    });
+    Array.prototype.forEach.call(q.querySelectorAll('[data-approve]'), function(el){
+      el.onclick = function(){ const b = DL.approveSlip(el.dataset.approve); toast('Approved '+(b?b.ref:'')+' — customer notified'); };
+    });
+    Array.prototype.forEach.call(q.querySelectorAll('[data-reject]'), function(el){
+      el.onclick = function(){ const bk = DL.rejectSlip(el.dataset.reject); toast('Rejected '+(bk?bk.ref:'')+' — slot released'); };
+    });
+  }
+
+  // ---------- Upcoming bookings list ----------
+  function renderList() {
+    const now = new Date();
+    const rows = DL.getBookings()
+      .filter(function(b){ return b.status!=='cancelled'; })
+      .filter(function(b){ const d=new Date(b.date+'T00:00:00'); d.setMinutes(b.start); return d.getTime() >= now.getTime()-1800000; })
+      .sort(function(a,b){ return (a.date+String(a.start).padStart(4,'0')).localeCompare(b.date+String(b.start).padStart(4,'0')); })
+      .slice(0, 12);
+
+    let html = '<div class="brow head"><div>Ref</div><div>Customer</div><div>Bay</div><div>When</div><div>Status</div></div>';
+    if (!rows.length) {
+      html += '<div class="brow"><div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:14px">No upcoming bookings.</div></div>';
+    }
+    rows.forEach(function(b){
+      const pill = b.status==='confirmed'?'confirmed':(b.status==='pending-payment'?'pending':'blocked');
+      const pillTxt = b.status==='confirmed'?'CONFIRMED':(b.status==='pending-payment'?'PENDING':'BLOCKED');
+      const nm = b.status==='blocked' ? 'Blocked' : b.customerName;
+      const src = b.source==='customer'?'LINE':(b.source==='walk-in'?'walk-in':'staff');
+      html += '<div class="brow"><div class="ref">'+b.ref+'</div>'+
+        '<div><div class="nm">'+nm+'</div><div class="src-tag">'+src+'</div></div>'+
+        '<div>'+DL.CONFIG.ROOM_NAMES[b.room]+'</div>'+
+        '<div class="sub">'+friendly(b.date)+'<br/>'+DL.rangeLabel(b.start, DL.durOf(b))+'</div>'+
+        '<div><span class="pill '+pill+'">'+pillTxt+'</span></div></div>';
+    });
+    $('bookingList').innerHTML = html;
+  }
+
+  // ---------- Modal (add walk-in / block) ----------
+  let modalMode = 'add';
+  function openModal(mode, prefill) {
+    modalMode = mode;
+    $('modalTitle').textContent = mode==='block' ? 'Block time' : 'Add walk-in booking';
+    $('modalSave').textContent = mode==='block' ? 'Block slot' : 'Save booking';
+    $('modalSave').className = 'btn' + (mode==='block'?' danger':'');
+    $('fldName').style.display = mode==='block' ? 'none' : 'block';
+    $('fldContact').style.display = 'grid';                 // always show (holds the Bay selector)
+    $('fldPhone').style.display = mode==='block' ? 'none' : 'block'; // phone only for walk-ins
+    $('fldReason').style.display = mode==='block' ? 'block' : 'none';
+    $('modalNote').textContent = mode==='block'
+      ? 'Blocking makes this slot unavailable to customers in the LINE app immediately.'
+      : 'A walk-in is confirmed instantly and removes this slot from customer availability.';
+
+    // room segmented control
+    const seg = $('mRoomSeg'); seg.innerHTML='';
+    DL.CONFIG.ROOMS.forEach(function(r){
+      const btn = document.createElement('button');
+      btn.textContent = DL.CONFIG.ROOM_NAMES[r];
+      btn.dataset.room = r;
+      btn.className = (prefill&&prefill.room===r)||(!prefill&&r===1)?'on':'';
+      btn.onclick = function(){ Array.prototype.forEach.call(seg.children,function(c){c.classList.remove('on');}); btn.classList.add('on'); checkSlot(); };
+      seg.appendChild(btn);
+    });
+    // date select
+    const ds = $('mDate'); ds.innerHTML='';
+    winDates.forEach(function(d,i){ const iso=DL.ymd(d); const o=document.createElement('option'); o.value=iso; o.textContent=(i===0?'Today · ':'')+friendly(iso); if(prefill&&prefill.date===iso)o.selected=true; ds.appendChild(o); });
+    // start time + duration selects
+    fillHours(prefill);
+    fillDurations(mode);
+    ds.onchange = function(){ fillHours(); checkSlot(); };
+    $('mHour').onchange = checkSlot;
+    $('mDur').onchange = checkSlot;
+
+    $('mName').value=''; $('mPhone').value=''; $('mReason').value='';
+    $('slotWarn').style.display='none';
+    checkSlot();
+    $('modalBg').classList.add('open');
+  }
+  function fillHours(prefill) {
+    const hs = $('mHour'); hs.innerHTML='';
+    DL.slotStarts().forEach(function(s){ const o=document.createElement('option'); o.value=s; o.textContent=DL.timeLabel(s); if(prefill&&prefill.start===s)o.selected=true; hs.appendChild(o); });
+  }
+  function fillDurations(mode) {
+    const dsel = $('mDur'); dsel.innerHTML='';
+    DL.CONFIG.DURATIONS.forEach(function(dur){
+      const o=document.createElement('option'); o.value=dur;
+      // Blocks are free; walk-ins show the price ladder incl. the 3-h promo.
+      o.textContent = DL.durationLabel(dur) + (mode==='block' ? '' :
+        ' · ' + DL.money(DL.priceFor(dur)) + (dur >= DL.CONFIG.PROMO_FREE_LAST_HOUR_AT ? ' (last hr free)' : ''));
+      if (dur===60) o.selected=true;
+      dsel.appendChild(o);
+    });
+  }
+  function currentModalSel() {
+    const room = +$('mRoomSeg').querySelector('.on').dataset.room;
+    return { room:room, date:$('mDate').value, start:+$('mHour').value, duration:+$('mDur').value };
+  }
+  function checkSlot() {
+    const sel = currentModalSel();
+    const ok = DL.isRangeAvailable(sel.room, sel.date, sel.start, sel.duration);
+    $('slotWarn').textContent = (sel.start + sel.duration > DL.CONFIG.CLOSE_MIN)
+      ? '⚠ That session would run past closing (21:00) — shorten it or start earlier.'
+      : '⚠ That slot is already taken — pick another.';
+    $('slotWarn').style.display = ok ? 'none':'block';
+    $('modalSave').disabled = !ok;
+    $('modalSave').style.opacity = ok ? '1':'.5';
+  }
+  function closeModal(){ $('modalBg').classList.remove('open'); }
+  $('modalX').onclick = closeModal;
+  $('modalCancel').onclick = closeModal;
+  $('modalBg').onclick = function(e){ if(e.target===$('modalBg')) closeModal(); };
+  $('addBtn').onclick = function(){ openModal('add', { date: DL.ymd(winDates[dayIdx]) }); };
+  $('blockBtn').onclick = function(){ openModal('block', { date: DL.ymd(winDates[dayIdx]) }); };
+
+  $('modalSave').onclick = function(){
+    const sel = currentModalSel();
+    if (!DL.isRangeAvailable(sel.room, sel.date, sel.start, sel.duration)) { checkSlot(); return; }
+    if (modalMode==='block') {
+      const b = DL.blockSlot({ room:sel.room, date:sel.date, start:sel.start, duration:sel.duration, note:$('mReason').value.trim()||'Blocked by staff' });
+      toast('Blocked '+DL.CONFIG.ROOM_NAMES[sel.room]+' · '+DL.rangeLabel(sel.start, sel.duration));
+    } else {
+      const b = DL.createConfirmedBooking({ room:sel.room, date:sel.date, start:sel.start, duration:sel.duration, customerName:$('mName').value.trim()||'Walk-in guest', phone:$('mPhone').value.trim(), source:'walk-in' });
+      toast('Booked '+b.ref+' · '+DL.CONFIG.ROOM_NAMES[sel.room]+' · '+DL.durationLabel(sel.duration)+' · '+DL.money(b.price));
+    }
+    closeModal();
+    // jump timeline to the affected day so the change is visible
+    const idx = winDates.findIndex(function(d){ return DL.ymd(d)===sel.date; });
+    if (idx>=0) dayIdx = idx;
+    renderAll();
+  };
+
+  // ---------- render all + live sync ----------
+  function renderAll(){ renderKPIs(); renderTimeline(); renderQueue(); renderList(); }
+
+  DL.onChange(function(meta){
+    renderAll();
+    // subtle cue when a new pending slip arrives from the customer app
+    if (meta && meta.detail && meta.detail.type === 'create-pending') {
+      toast('New slip received — awaiting review');
+    }
+  });
+
+  $('todayDate').textContent = FULLDOW[new Date().getDay()] + ', ' + new Date().getDate() + ' ' + MON[new Date().getMonth()] + ' ' + new Date().getFullYear();
+  renderAll();
+})();
+</script>
+</body>
+</html>

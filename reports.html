@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fairway Club · Reports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green:        #1F5C3D;
+    --green-deep:   #143C29;
+    --green-mid:    #2E7D51;   /* validated categorical/sequential fill */
+    --green-soft:   #EAF1EC;
+    --green-line:   #CFE0D5;
+    --amber-fill:   #C08A2E;   /* validated 2nd categorical (Bay 2) */
+    --ink:          #16211C;
+    --muted:        #66746B;
+    --faint:        #9AA6A0;
+    --line:         #E7ECE8;
+    --bg:           #F0F3F0;
+    --card:         #FFFFFF;
+    --amber:        #B07A16;
+    --amber-soft:   #FBF3E1;
+    --blue:         #35617F;
+    --blue-soft:    #E9F0F4;
+    --radius:       16px;
+    --shadow:       0 1px 2px rgba(20,60,41,.04), 0 6px 20px rgba(20,60,41,.05);
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); min-height: 100vh; }
+
+  /* ---- Top bar (shared with dashboard) ---- */
+  .topbar { background: var(--green-deep); color: #EAF1EC; padding: 0 26px; height: 62px; display:flex; align-items:center; gap:14px; position:sticky; top:0; z-index:40; }
+  .topbar .logo { width:36px;height:36px;border-radius:10px; background: linear-gradient(135deg, var(--green-mid), var(--green)); display:grid;place-items:center; font-family:'Space Grotesk'; font-weight:700; font-size:18px; color:#fff; }
+  .topbar .brand { font-family:'Space Grotesk'; font-weight:600; font-size:16px; line-height:1.1; }
+  .topbar .brand .s { font-size:11px; opacity:.65; font-weight:400; font-family:'JetBrains Mono'; }
+  .topbar .nav { display:flex; gap:4px; margin-left:22px; }
+  .topbar .nav a { color:#C7D6CC; font-size:13.5px; padding:7px 13px; border-radius:9px; text-decoration:none; font-weight:500; cursor:pointer; }
+  .topbar .nav a.active { background: rgba(255,255,255,.12); color:#fff; }
+  .topbar .nav a:not(.active):not(.dim):hover { background: rgba(255,255,255,.06); color:#fff; }
+  .topbar .nav a.dim { opacity:.4; cursor:default; }
+  .topbar .right { margin-left:auto; display:flex; align-items:center; gap:14px; }
+  .live-dot { display:flex; align-items:center; gap:7px; font-family:'JetBrains Mono'; font-size:11px; color:#AEC6B6; }
+  .live-dot i { width:8px;height:8px;border-radius:50%; background:#5FD08A; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(95,208,138,.5)} 70%{box-shadow:0 0 0 7px rgba(95,208,138,0)} 100%{box-shadow:0 0 0 0 rgba(95,208,138,0)} }
+  .avatar { width:34px;height:34px;border-radius:50%; background:var(--green-mid); display:grid;place-items:center; font-family:'Space Grotesk'; font-weight:600; font-size:13px; color:#fff; }
+
+  .demo-strip { background:#FFF7E6; color:#7A5B12; font-size:12px; font-family:'JetBrains Mono'; padding:7px 26px; text-align:center; border-bottom:1px solid #F0E4C4; }
+  .demo-strip b { font-weight:600; }
+
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 24px 26px 60px; }
+
+  .page-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+  .page-head h1 { font-family:'Space Grotesk'; font-size:25px; font-weight:600; letter-spacing:-.015em; }
+  .page-head .sub { color:var(--muted); font-size:13.5px; margin-top:3px; font-family:'JetBrains Mono'; }
+
+  /* period toggle */
+  .seg-toggle { display:flex; background:#fff; border:1px solid var(--line); border-radius:11px; padding:3px; box-shadow:var(--shadow); }
+  .seg-toggle button { border:none; background:none; font-family:'Space Grotesk'; font-weight:600; font-size:13px; color:var(--muted); padding:7px 14px; border-radius:8px; cursor:pointer; }
+  .seg-toggle button.on { background:var(--green); color:#fff; }
+
+  /* ---- KPI hero row ---- */
+  .kpi-row { display:grid; grid-template-columns: repeat(5, 1fr); gap:16px; margin-bottom:22px; }
+  @media (max-width: 1080px){ .kpi-row{ grid-template-columns: repeat(2,1fr);} }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; box-shadow:var(--shadow); }
+  .kpi .label { font-family:'JetBrains Mono'; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; display:flex; align-items:center; gap:6px; }
+  .kpi .ic { font-size:14px; }
+  .kpi .val { font-family:'Space Grotesk'; font-weight:700; font-size:27px; letter-spacing:-.02em; margin-top:10px; line-height:1; }
+  .kpi .delta { font-size:11.5px; color:var(--muted); margin-top:6px; }
+  .kpi .delta b { font-weight:600; }
+  .kpi .delta .up { color:var(--green-mid); }
+  .kpi .delta .down { color:#B4433A; }
+
+  /* ---- chart grid ---- */
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:20px; align-items:start; }
+  @media (max-width: 1080px){ .grid{ grid-template-columns:1fr; } }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px 20px; }
+  .panel.span2 { grid-column: 1 / -1; }
+  .panel-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:4px; }
+  .panel-head h2 { font-family:'Space Grotesk'; font-size:15.5px; font-weight:600; }
+  .panel-head .note { font-family:'JetBrains Mono'; font-size:11px; color:var(--faint); }
+  .panel-sub { font-size:12px; color:var(--muted); margin-bottom:14px; }
+
+  /* legend */
+  .legend { display:flex; gap:14px; font-size:12px; color:var(--muted); }
+  .legend span { display:flex; align-items:center; gap:6px; }
+  .legend i { width:11px;height:11px;border-radius:3px; display:inline-block; }
+
+  /* ---- vertical bar chart ---- */
+  .vbars { display:flex; align-items:flex-end; gap:2px; height:190px; padding-top:14px; position:relative; }
+  .vbars .gridline { position:absolute; left:0; right:0; border-top:1px dashed var(--line); z-index:0; }
+  .vbars .gridcap { position:absolute; right:0; font-family:'JetBrains Mono'; font-size:9.5px; color:var(--faint); transform:translateY(-50%); background:var(--card); padding-left:5px; }
+  .vbar { flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%; position:relative; z-index:1; cursor:pointer; min-width:0; }
+  .vbar .fill { width:100%; max-width:34px; background:var(--green-mid); border-radius:4px 4px 0 0; transition:.12s; min-height:2px; }
+  .vbar:hover .fill { background:var(--green); }
+  .vbar.today .fill { background:var(--green); box-shadow:0 0 0 2px var(--green-soft), 0 0 0 3px var(--green-mid); }
+  .vaxis { display:flex; gap:2px; margin-top:7px; }
+  .vaxis .t { flex:1; text-align:center; font-family:'JetBrains Mono'; font-size:9.5px; color:var(--faint); min-width:0; overflow:hidden; }
+  .vaxis .t.today { color:var(--green-deep); font-weight:600; }
+
+  /* ---- horizontal bar chart ---- */
+  .hbars { display:flex; flex-direction:column; gap:10px; margin-top:6px; }
+  .hrow { display:flex; align-items:center; gap:12px; }
+  .hrow .hlabel { width:66px; flex-shrink:0; font-family:'JetBrains Mono'; font-size:11.5px; color:var(--muted); text-align:right; }
+  .hrow .htrack { flex:1; background:var(--bg); border-radius:5px; height:22px; position:relative; overflow:hidden; }
+  .hrow .hfill { height:100%; background:var(--green-mid); border-radius:5px; min-width:2px; transition:.35s; }
+  .hrow .hval { width:74px; flex-shrink:0; font-family:'Space Grotesk'; font-weight:600; font-size:12.5px; color:var(--ink); }
+  .hrow .hval small { color:var(--muted); font-weight:500; font-family:'Inter'; }
+
+  /* ---- bay split (2-category, direct-labelled) ---- */
+  .baywrap { display:flex; flex-direction:column; gap:14px; margin-top:6px; }
+  .bayrow { }
+  .bayrow .top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .bayrow .nm { font-family:'Space Grotesk'; font-weight:600; font-size:13.5px; display:flex; align-items:center; gap:7px; }
+  .bayrow .nm i { width:11px;height:11px;border-radius:3px; display:inline-block; }
+  .bayrow .fig { font-family:'Space Grotesk'; font-weight:700; font-size:14px; }
+  .bayrow .fig small { color:var(--muted); font-weight:500; font-size:11.5px; font-family:'JetBrains Mono'; }
+  .bayrow .track { background:var(--bg); border-radius:6px; height:26px; overflow:hidden; }
+  .bayrow .fill { height:100%; border-radius:6px; transition:.35s; min-width:2px; }
+  .bay1 { background:var(--green-mid); }
+  .bay2 { background:var(--amber-fill); }
+  .balance-note { font-size:12px; color:var(--muted); margin-top:14px; padding:10px 12px; background:var(--green-soft); border-radius:10px; }
+  .balance-note b { color:var(--green-deep); font-weight:600; }
+
+  /* channel split stacked bar */
+  .chan-bar { display:flex; height:30px; border-radius:8px; overflow:hidden; margin-top:8px; gap:2px; background:var(--card); }
+  .chan-seg { display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono'; font-size:11px; font-weight:600; color:#fff; min-width:36px; }
+  .chan-seg.line { background:var(--green-mid); }
+  .chan-seg.walk { background:var(--blue); }
+  .chan-legend { display:flex; gap:16px; margin-top:12px; font-size:12.5px; color:var(--muted); }
+  .chan-legend span { display:flex; align-items:center; gap:7px; }
+  .chan-legend b { color:var(--ink); font-family:'Space Grotesk'; }
+  .chan-legend i { width:11px;height:11px;border-radius:3px; }
+
+  /* table (accessibility view) */
+  details.tbl { margin-top:16px; }
+  details.tbl summary { font-family:'JetBrains Mono'; font-size:11.5px; color:var(--green-mid); cursor:pointer; font-weight:600; }
+  details.tbl table { width:100%; border-collapse:collapse; margin-top:10px; font-size:12.5px; }
+  details.tbl th { text-align:left; font-family:'JetBrains Mono'; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); padding:6px 8px; border-bottom:1px solid var(--line); }
+  details.tbl td { padding:6px 8px; border-bottom:1px solid var(--line); font-family:'JetBrains Mono'; }
+  details.tbl td.rev { font-family:'Space Grotesk'; font-weight:600; }
+
+  /* floating tooltip */
+  .chart-tip { position:fixed; z-index:200; background:#16211C; color:#fff; font-size:12px; padding:8px 11px; border-radius:9px; box-shadow:0 8px 24px rgba(0,0,0,.28); pointer-events:none; opacity:0; transition:opacity .1s; white-space:nowrap; }
+  .chart-tip.show { opacity:1; }
+  .chart-tip .tt { font-family:'JetBrains Mono'; font-size:10px; opacity:.7; }
+  .chart-tip .tv { font-family:'Space Grotesk'; font-weight:600; font-size:13px; margin-top:2px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">F</div>
+    <div class="brand">Fairway Club<div class="s">Staff Console</div></div>
+    <div class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a class="dim">Bookings</a>
+      <a class="dim">Customers</a>
+      <a class="active">Reports</a>
+    </div>
+    <div class="right">
+      <div class="live-dot"><i></i> LIVE · shared state</div>
+      <div class="avatar">SN</div>
+    </div>
+  </div>
+  <div class="demo-strip">◆ <b>DEMO</b> — every figure computed live from shared local state (incl. 13 days of seeded history) · confirm a booking on the Dashboard and these update</div>
+
+  <div class="wrap">
+    <div class="page-head">
+      <div>
+        <h1>Reports</h1>
+        <div class="sub" id="periodLabel"></div>
+      </div>
+      <div class="seg-toggle" id="periodToggle">
+        <button data-days="7">Last 7 days</button>
+        <button data-days="14" class="on">Last 14 days</button>
+      </div>
+    </div>
+
+    <!-- Hero KPIs -->
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <!-- Revenue by day (full width) -->
+    <div class="panel span2" style="margin-bottom:20px">
+      <div class="panel-head">
+        <h2>Revenue by day</h2>
+        <div class="note" id="revNote"></div>
+      </div>
+      <div class="panel-sub">Confirmed bookings · ฿ per day · today highlighted</div>
+      <div class="vbars" id="revChart"></div>
+      <div class="vaxis" id="revAxis"></div>
+      <details class="tbl">
+        <summary>View as table ▾</summary>
+        <table id="revTable"></table>
+      </details>
+    </div>
+
+    <div class="grid">
+      <!-- Peak hours -->
+      <div class="panel">
+        <div class="panel-head"><h2>Bookings by start hour</h2><div class="note">peak demand</div></div>
+        <div class="panel-sub">When sessions start, aggregated across both bays</div>
+        <div class="vbars" id="hourChart" style="height:150px"></div>
+        <div class="vaxis" id="hourAxis"></div>
+      </div>
+
+      <!-- Duration mix -->
+      <div class="panel">
+        <div class="panel-head"><h2>Session length mix</h2><div class="note">count per length</div></div>
+        <div class="panel-sub">Which durations customers choose</div>
+        <div class="hbars" id="durChart"></div>
+      </div>
+
+      <!-- Bay utilisation (2-category) -->
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Bay utilisation</h2>
+          <div class="legend"><span><i style="background:var(--green-mid)"></i>Bay 1</span><span><i style="background:var(--amber-fill)"></i>Bay 2</span></div>
+        </div>
+        <div class="panel-sub">Occupied slots per bay — shows how evenly auto-assign spreads demand</div>
+        <div class="baywrap" id="bayChart"></div>
+        <div class="balance-note" id="bayBalance"></div>
+      </div>
+
+      <!-- Channel split -->
+      <div class="panel">
+        <div class="panel-head"><h2>Booking channel</h2><div class="note">where bookings come from</div></div>
+        <div class="panel-sub">LINE self-service vs. staff-entered walk-ins</div>
+        <div class="chan-bar" id="chanBar"></div>
+        <div class="chan-legend" id="chanLegend"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-tip" id="tip"><div class="tt" id="tipT"></div><div class="tv" id="tipV"></div></div>
+
+<script src="data-layer.js"></script>
+<script>
+(function () {
+  'use strict';
+  const DL = window.DataLayer;
+  DL.seedIfEmpty();
+  const $ = function (id) { return document.getElementById(id); };
+
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let days = 14;
+
+  // ---- floating tooltip ----
+  const tip = $('tip');
+  function showTip(e, title, val) {
+    $('tipT').textContent = title; $('tipV').textContent = val;
+    tip.classList.add('show');
+    moveTip(e);
+  }
+  function moveTip(e) {
+    let x = e.clientX + 14, y = e.clientY - 10;
+    if (x + tip.offsetWidth > window.innerWidth - 10) x = e.clientX - tip.offsetWidth - 14;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  function hideTip() { tip.classList.remove('show'); }
+
+  // ---- nice round max for axis gridlines ----
+  function niceMax(v) {
+    if (v <= 0) return 1;
+    const pow = Math.pow(10, Math.floor(Math.log10(v)));
+    const n = v / pow;
+    const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+    return step * pow;
+  }
+
+  function render() {
+    const r = DL.report(days);
+    const first = r.byDay[0].dateObj, last = r.byDay[r.byDay.length - 1].dateObj;
+    $('periodLabel').textContent = DOW[first.getDay()] + ' ' + first.getDate() + ' ' + MON[first.getMonth()] +
+      ' – ' + DOW[last.getDay()] + ' ' + last.getDate() + ' ' + MON[last.getMonth()] + ' · confirmed bookings';
+
+    renderKPIs(r);
+    renderRevenue(r);
+    renderHours(r);
+    renderDurations(r);
+    renderBays(r);
+    renderChannel(r);
+  }
+
+  // ---- KPI hero ----
+  function renderKPIs(r) {
+    const avgPerDay = Math.round(r.totalRevenue / r.days);
+    $('kpiRow').innerHTML =
+      kpi('💷','Revenue', DL.money(r.totalRevenue), 'avg <b>' + DL.money(avgPerDay) + '</b>/day') +
+      kpi('📅','Bookings', r.totalBookings, '<b>' + (r.totalBookings / r.days).toFixed(1) + '</b> per day') +
+      kpi('🧾','Avg booking value', DL.money(r.avgValue), 'per confirmed session') +
+      kpi('📊','Utilisation', r.utilization + '%', 'of total bay-hours') +
+      kpi('🎁','3-hr promos', r.promoCount, 'last-hour-free redeemed');
+  }
+  function kpi(ic, label, val, delta) {
+    return '<div class="kpi"><div class="label"><span class="ic">' + ic + '</span>' + label + '</div>' +
+           '<div class="val">' + val + '</div><div class="delta">' + delta + '</div></div>';
+  }
+
+  // ---- Revenue by day (vertical bars) ----
+  function renderRevenue(r) {
+    const max = niceMax(Math.max.apply(null, r.byDay.map(function (d) { return d.revenue; })) || 1);
+    $('revNote').textContent = 'peak ' + DL.money(max);
+    const chart = $('revChart'); chart.innerHTML = '';
+    // gridlines: the max value line sits at 92% (leaving 8% headroom for its cap);
+    // bars use the same 92% scale so a max-revenue day reaches the top line.
+    const SCALE = 92;
+    [1, 0.5].forEach(function (f) {
+      const yb = f * SCALE;
+      const g = document.createElement('div'); g.className = 'gridline'; g.style.bottom = yb + '%';
+      const cap = document.createElement('div'); cap.className = 'gridcap'; cap.style.bottom = yb + '%';
+      cap.textContent = DL.money(max * f);
+      chart.appendChild(g); chart.appendChild(cap);
+    });
+    r.byDay.forEach(function (d, i) {
+      const isToday = i === r.byDay.length - 1;
+      const bar = document.createElement('div');
+      bar.className = 'vbar' + (isToday ? ' today' : '');
+      const h = (d.revenue / max) * SCALE;
+      bar.innerHTML = '<div class="fill" style="height:' + h + '%"></div>';
+      const label = DOW[d.dateObj.getDay()] + ' ' + d.dateObj.getDate() + ' ' + MON[d.dateObj.getMonth()];
+      bar.addEventListener('mouseenter', function (e) { showTip(e, label + (isToday ? ' · today' : ''), DL.money(d.revenue) + ' · ' + d.count + ' bookings'); });
+      bar.addEventListener('mousemove', moveTip);
+      bar.addEventListener('mouseleave', hideTip);
+      chart.appendChild(bar);
+    });
+    // axis (day numbers, thin)
+    const ax = $('revAxis'); ax.innerHTML = '';
+    r.byDay.forEach(function (d, i) {
+      const isToday = i === r.byDay.length - 1;
+      const t = document.createElement('div');
+      t.className = 't' + (isToday ? ' today' : '');
+      t.textContent = isToday ? 'Today' : d.dateObj.getDate();
+      ax.appendChild(t);
+    });
+    // table view
+    let html = '<tr><th>Date</th><th>Bookings</th><th>Revenue</th></tr>';
+    r.byDay.forEach(function (d) {
+      html += '<tr><td>' + DOW[d.dateObj.getDay()] + ' ' + d.dateObj.getDate() + ' ' + MON[d.dateObj.getMonth()] + '</td>' +
+              '<td>' + d.count + '</td><td class="rev">' + DL.money(d.revenue) + '</td></tr>';
+    });
+    $('revTable').innerHTML = html;
+  }
+
+  // ---- Bookings by hour ----
+  function renderHours(r) {
+    const max = Math.max.apply(null, r.byHour.map(function (h) { return h.count; })) || 1;
+    const chart = $('hourChart'); chart.innerHTML = '';
+    r.byHour.forEach(function (h) {
+      const bar = document.createElement('div'); bar.className = 'vbar';
+      const ht = (h.count / max) * 92;
+      bar.innerHTML = '<div class="fill" style="height:' + ht + '%"></div>';
+      bar.addEventListener('mouseenter', function (e) { showTip(e, DL.timeLabel(h.hour * 60) + '–' + DL.timeLabel(h.hour * 60 + 60), h.count + ' bookings'); });
+      bar.addEventListener('mousemove', moveTip);
+      bar.addEventListener('mouseleave', hideTip);
+      chart.appendChild(bar);
+    });
+    const ax = $('hourAxis'); ax.innerHTML = '';
+    r.byHour.forEach(function (h) {
+      const t = document.createElement('div'); t.className = 't';
+      t.textContent = h.hour; // 24h hour number
+      ax.appendChild(t);
+    });
+  }
+
+  // ---- Duration mix (horizontal) ----
+  function renderDurations(r) {
+    const max = Math.max.apply(null, r.byDuration.map(function (d) { return d.count; })) || 1;
+    const total = r.byDuration.reduce(function (a, d) { return a + d.count; }, 0) || 1;
+    const chart = $('durChart'); chart.innerHTML = '';
+    r.byDuration.forEach(function (d) {
+      const row = document.createElement('div'); row.className = 'hrow';
+      const pct = Math.round((d.count / total) * 100);
+      const promo = d.duration >= DL.CONFIG.PROMO_FREE_LAST_HOUR_AT;
+      row.innerHTML =
+        '<div class="hlabel">' + DL.durationLabel(d.duration) + (promo ? ' ★' : '') + '</div>' +
+        '<div class="htrack"><div class="hfill" style="width:' + ((d.count / max) * 100) + '%' + (promo ? ';background:var(--amber-fill)' : '') + '"></div></div>' +
+        '<div class="hval">' + d.count + ' <small>· ' + pct + '%</small></div>';
+      chart.appendChild(row);
+    });
+  }
+
+  // ---- Bay utilisation (2 categories) ----
+  function renderBays(r) {
+    const maxSlots = Math.max.apply(null, r.byBay.map(function (b) { return b.slots; })) || 1;
+    const wrap = $('bayChart'); wrap.innerHTML = '';
+    r.byBay.forEach(function (b) {
+      const hrs = (b.slots * DL.CONFIG.SLOT_MINUTES / 60);
+      const row = document.createElement('div'); row.className = 'bayrow';
+      row.innerHTML =
+        '<div class="top"><div class="nm"><i class="' + (b.room === 1 ? 'bay1' : 'bay2') + '" style="background:' + (b.room === 1 ? 'var(--green-mid)' : 'var(--amber-fill)') + '"></i>' + DL.CONFIG.ROOM_NAMES[b.room] + '</div>' +
+        '<div class="fig">' + hrs.toFixed(1) + ' hrs <small>· ' + b.count + ' bookings · ' + DL.money(b.revenue) + '</small></div></div>' +
+        '<div class="track"><div class="fill ' + (b.room === 1 ? 'bay1' : 'bay2') + '" style="width:' + ((b.slots / maxSlots) * 100) + '%"></div></div>';
+      wrap.appendChild(row);
+    });
+    // balance note
+    const s1 = r.byBay[0].slots, s2 = r.byBay[1] ? r.byBay[1].slots : 0;
+    const tot = s1 + s2;
+    const split = tot ? Math.round((s1 / tot) * 100) : 50;
+    $('bayBalance').innerHTML = 'Bays are running a <b>' + split + '/' + (100 - split) + '</b> split — auto-assign routes each new booking to the freer bay to keep them level.';
+  }
+
+  // ---- Channel split ----
+  function renderChannel(r) {
+    const total = r.channel.line + r.channel.walkin || 1;
+    const linePct = Math.round((r.channel.line / total) * 100);
+    const walkPct = 100 - linePct;
+    $('chanBar').innerHTML =
+      '<div class="chan-seg line" style="flex:' + Math.max(r.channel.line, 0.001) + '">' + (linePct >= 12 ? linePct + '%' : '') + '</div>' +
+      '<div class="chan-seg walk" style="flex:' + Math.max(r.channel.walkin, 0.001) + '">' + (walkPct >= 12 ? walkPct + '%' : '') + '</div>';
+    $('chanLegend').innerHTML =
+      '<span><i style="background:var(--green-mid)"></i>LINE app&nbsp; <b>' + r.channel.line + '</b></span>' +
+      '<span><i style="background:var(--blue)"></i>Walk-in&nbsp; <b>' + r.channel.walkin + '</b></span>';
+  }
+
+  // ---- period toggle ----
+  Array.prototype.forEach.call($('periodToggle').children, function (btn) {
+    btn.onclick = function () {
+      Array.prototype.forEach.call($('periodToggle').children, function (b) { b.classList.remove('on'); });
+      btn.classList.add('on');
+      days = +btn.dataset.days;
+      render();
+    };
+  });
+
+  // ---- live sync ----
+  DL.onChange(function () { render(); });
+
+  render();
+})();
+</script>
+</body>
+</html>
