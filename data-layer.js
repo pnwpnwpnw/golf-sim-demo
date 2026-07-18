@@ -479,6 +479,69 @@
       };
     },
 
+    // --- CUSTOMERS roll-up (derived live from bookings) ----------------------
+    // There is no separate "customer" record — a customer is just the set of
+    // bookings sharing a name. We group by normalised name (phone is often
+    // blank in walk-ins/history), merge in the best-known phone, and compute
+    // per-person stats. Blocks/maintenance are never customers.
+    customers: function () {
+      const rows = loadState().bookings.filter(function (b) {
+        return b.status !== 'blocked' && b.source !== 'block';
+      });
+      const now = new Date();
+      const map = {};
+
+      rows.forEach(function (b) {
+        const key = (b.customerName || 'Guest').trim().toLowerCase();
+        if (!map[key]) {
+          map[key] = {
+            key: key,
+            name: (b.customerName || 'Guest').trim(),
+            phone: '',
+            bookings: [],
+            visits: 0,        // confirmed sessions (realised + upcoming confirmed)
+            pending: 0,       // slips awaiting review
+            cancelled: 0,     // rejected / cancelled
+            upcoming: 0,      // future confirmed or pending
+            totalSpend: 0,    // confirmed only
+            firstDate: b.date,
+            lastDate: b.date,
+            sources: {},
+          };
+        }
+        const c = map[key];
+        c.bookings.push(b);
+        if (b.phone) c.phone = b.phone;                 // keep the last non-empty phone
+        c.sources[b.source] = (c.sources[b.source] || 0) + 1;
+        if (b.status === 'confirmed') { c.visits++; c.totalSpend += b.price; }
+        else if (b.status === 'pending-payment') c.pending++;
+        else if (b.status === 'cancelled') c.cancelled++;
+        if (b.date < c.firstDate) c.firstDate = b.date;
+        if (b.date > c.lastDate) c.lastDate = b.date;
+      });
+
+      return Object.keys(map).map(function (k) {
+        const c = map[k];
+        // history newest-first
+        c.bookings.sort(function (a, b) {
+          return (b.date + String(b.start).padStart(4, '0')).localeCompare(a.date + String(a.start).padStart(4, '0'));
+        });
+        c.upcoming = c.bookings.filter(function (b) {
+          if (b.status !== 'confirmed' && b.status !== 'pending-payment') return false;
+          const d = new Date(b.date + 'T00:00:00'); d.setMinutes(b.start);
+          return d.getTime() >= now.getTime();
+        }).length;
+        c.totalBookings = c.bookings.length;
+        c.avgSpend = c.visits ? Math.round(c.totalSpend / c.visits) : 0;
+        // primary booking channel (ties favour the self-service LINE app)
+        const line = c.sources['customer'] || 0, walk = c.sources['walk-in'] || 0;
+        c.channel = line >= walk ? 'LINE' : 'walk-in';
+        // simple segment label
+        c.segment = c.visits >= 3 ? 'Regular' : (c.totalBookings <= 1 ? 'New' : 'Returning');
+        return c;
+      }).sort(function (a, b) { return b.totalSpend - a.totalSpend; });
+    },
+
     // --- change subscription -------------------------------------------------
     // Fires for BOTH same-page writes and cross-tab writes.
     onChange: function (handler) {
