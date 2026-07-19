@@ -319,6 +319,10 @@
           <div class="fld"><label>Start time</label><select id="mHour"></select></div>
         </div>
         <div class="fld"><label>Duration</label><select id="mDur"></select></div>
+        <div class="fld" id="fldPrice">
+          <label>Total price</label>
+          <div class="cur-input"><span id="mPriceSym">฿</span><input id="mPrice" type="number" min="0" step="10" /></div>
+        </div>
         <div class="slot-warn" id="slotWarn">⚠ That slot is already taken — pick another.</div>
         <div class="fld" id="fldReason" style="display:none">
           <label>Reason</label>
@@ -578,6 +582,7 @@
 
   // ---------- Modal (add walk-in / block) ----------
   let modalMode = 'add';
+  let priceEdited = false; // true once staff hand-edits the total price for this open modal
   function openModal(mode, prefill) {
     modalMode = mode;
     $('modalTitle').textContent = mode==='block' ? 'Block time' : 'Add walk-in booking';
@@ -587,9 +592,11 @@
     $('fldContact').style.display = 'grid';                 // always show (holds the Bay selector)
     $('fldPhone').style.display = mode==='block' ? 'none' : 'block'; // phone only for walk-ins
     $('fldReason').style.display = mode==='block' ? 'block' : 'none';
+    $('fldPrice').style.display = mode==='block' ? 'none' : 'block'; // price only for walk-ins
+    $('mPriceSym').textContent = DL.getSettings().pricing.currency;
     $('modalNote').textContent = mode==='block'
       ? 'Blocking makes this slot unavailable to customers in the LINE app immediately.'
-      : 'A walk-in is confirmed instantly and removes this slot from customer availability.';
+      : 'A walk-in is confirmed instantly and removes this slot from customer availability. Adjust the total price below if it differs from the standard rate.';
 
     // room segmented control
     const seg = $('mRoomSeg'); seg.innerHTML='';
@@ -605,13 +612,15 @@
     const ds = $('mDate'); ds.innerHTML='';
     winDates.forEach(function(d,i){ const iso=DL.ymd(d); const o=document.createElement('option'); o.value=iso; o.textContent=(i===0?'Today · ':'')+friendly(iso); if(prefill&&prefill.date===iso)o.selected=true; ds.appendChild(o); });
     // start time + duration selects
+    priceEdited = false;
     fillHours(prefill);
     fillDurations(mode);
     // Date/time drive which promos apply, so re-price the duration ladder when
     // either changes (preserving the chosen duration).
     ds.onchange = function(){ fillHours(); fillDurations(mode); checkSlot(); };
     $('mHour').onchange = function(){ fillDurations(mode); checkSlot(); };
-    $('mDur').onchange = checkSlot;
+    $('mDur').onchange = function(){ updatePriceDefault(); checkSlot(); };
+    $('mPrice').oninput = function(){ priceEdited = true; };
 
     $('mName').value=''; $('mPhone').value=''; $('mReason').value='';
     $('slotWarn').style.display='none';
@@ -639,6 +648,15 @@
       if (dur===keep) o.selected=true;
       dsel.appendChild(o);
     });
+    updatePriceDefault();
+  }
+  // Keeps the total-price field in sync with the computed (promo-aware) price
+  // as date/time/duration change, unless staff has typed a custom amount.
+  function updatePriceDefault() {
+    if (modalMode==='block' || priceEdited) return;
+    const date = $('mDate').value, start = +$('mHour').value, dur = +$('mDur').value;
+    const ev = DL.evaluatePromos(dur, { date: date, start: start });
+    $('mPrice').value = ev.finalPrice;
   }
   function currentModalSel() {
     const room = +$('mRoomSeg').querySelector('.on').dataset.room;
@@ -668,7 +686,10 @@
       const b = DL.blockSlot({ room:sel.room, date:sel.date, start:sel.start, duration:sel.duration, note:$('mReason').value.trim()||'Blocked by staff' });
       toast('Blocked '+DL.CONFIG.ROOM_NAMES[sel.room]+' · '+DL.rangeLabel(sel.start, sel.duration));
     } else {
-      const b = DL.createConfirmedBooking({ room:sel.room, date:sel.date, start:sel.start, duration:sel.duration, customerName:$('mName').value.trim()||'Walk-in guest', phone:$('mPhone').value.trim(), source:'walk-in' });
+      const priceRaw = $('mPrice').value.trim();
+      const priceNum = +priceRaw;
+      const price = (priceRaw!=='' && Number.isFinite(priceNum)) ? Math.max(0, priceNum) : undefined;
+      const b = DL.createConfirmedBooking({ room:sel.room, date:sel.date, start:sel.start, duration:sel.duration, customerName:$('mName').value.trim()||'Walk-in guest', phone:$('mPhone').value.trim(), source:'walk-in', price:price });
       toast('Booked '+b.ref+' · '+DL.CONFIG.ROOM_NAMES[sel.room]+' · '+DL.durationLabel(sel.duration)+' · '+DL.money(b.price));
     }
     closeModal();
