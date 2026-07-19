@@ -597,7 +597,7 @@
       const btn = document.createElement('button');
       btn.textContent = DL.CONFIG.ROOM_NAMES[r];
       btn.dataset.room = r;
-      btn.className = (prefill&&prefill.room===r)||(!prefill&&r===1)?'on':'';
+      btn.className = ((prefill&&prefill.room)?prefill.room===r:r===1)?'on':'';
       btn.onclick = function(){ Array.prototype.forEach.call(seg.children,function(c){c.classList.remove('on');}); btn.classList.add('on'); checkSlot(); };
       seg.appendChild(btn);
     });
