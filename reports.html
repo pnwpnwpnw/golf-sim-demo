@@ -57,6 +57,12 @@
   .page-head h1 { font-family:'Inter'; font-size:25px; font-weight:600; letter-spacing:-.015em; }
   .page-head .sub { color:var(--muted); font-size:13.5px; margin-top:3px; font-family:'Inter'; }
 
+  /* header tools */
+  .head-tools { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .btn-export { font-family:'Inter'; font-weight:600; font-size:13px; cursor:pointer; background:var(--green); color:#fff; border:none; padding:9px 15px; border-radius:11px; box-shadow:var(--shadow); transition:.12s; display:inline-flex; align-items:center; gap:7px; }
+  .btn-export:hover { background:var(--green-deep); }
+  .btn-export:active { transform:scale(.98); }
+
   /* period toggle */
   .seg-toggle { display:flex; background:#fff; border:1px solid var(--line); border-radius:11px; padding:3px; box-shadow:var(--shadow); }
   .seg-toggle button { border:none; background:none; font-family:'Inter'; font-weight:600; font-size:13px; color:var(--muted); padding:7px 14px; border-radius:8px; cursor:pointer; }
@@ -172,9 +178,12 @@
         <h1>Reports</h1>
         <div class="sub" id="periodLabel"></div>
       </div>
-      <div class="seg-toggle" id="periodToggle">
-        <button data-days="7">Last 7 days</button>
-        <button data-days="14" class="on">Last 14 days</button>
+      <div class="head-tools">
+        <div class="seg-toggle" id="periodToggle">
+          <button data-days="7">Last 7 days</button>
+          <button data-days="14" class="on">Last 14 days</button>
+        </div>
+        <button class="btn-export" id="exportBtn" title="Download this report as a CSV file">⭳ Export CSV</button>
       </div>
     </div>
 
@@ -292,7 +301,7 @@
       kpi('📅','Bookings', r.totalBookings, '<b>' + (r.totalBookings / r.days).toFixed(1) + '</b> per day') +
       kpi('🧾','Avg booking value', DL.money(r.avgValue), 'per confirmed session') +
       kpi('📊','Utilisation', r.utilization + '%', 'of total bay-hours') +
-      kpi('🎁','3-hr promos', r.promoCount, 'last-hour-free redeemed');
+      kpi('🎁','Promos applied', r.promoCount, r.totalDiscount ? DL.money(r.totalDiscount) + ' discounted' : 'sessions with a discount');
   }
   function kpi(ic, label, val, delta) {
     return '<div class="kpi"><div class="label"><span class="ic">' + ic + '</span>' + label + '</div>' +
@@ -373,7 +382,7 @@
     r.byDuration.forEach(function (d) {
       const row = document.createElement('div'); row.className = 'hrow';
       const pct = Math.round((d.count / total) * 100);
-      const promo = d.duration >= DL.CONFIG.PROMO_FREE_LAST_HOUR_AT;
+      const promo = (d.promo || 0) > 0; // this duration actually received a discount in-window
       row.innerHTML =
         '<div class="hlabel">' + DL.durationLabel(d.duration) + (promo ? ' ★' : '') + '</div>' +
         '<div class="htrack"><div class="hfill" style="width:' + ((d.count / max) * 100) + '%' + (promo ? ';background:var(--amber-fill)' : '') + '"></div></div>' +
@@ -424,6 +433,64 @@
       render();
     };
   });
+
+  // ---- CSV export ----
+  // Quote a field per RFC 4180: wrap in quotes and double any inner quotes when
+  // it contains a comma, quote, or newline.
+  function csvCell(v) {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function csvRow(arr) { return arr.map(csvCell).join(','); }
+
+  function buildCSV(r) {
+    const cur = DL.getSettings().pricing.currency;
+    const first = r.byDay[0].dateObj, last = r.byDay[r.byDay.length - 1].dateObj;
+    const period = fmtDate(first) + ' to ' + fmtDate(last);
+    const lines = [];
+    // Summary block
+    lines.push(csvRow(['Fairway Club — Report']));
+    lines.push(csvRow(['Period', period + ' (' + r.days + ' days)']));
+    lines.push(csvRow(['Generated', new Date().toLocaleString()]));
+    lines.push(csvRow(['Currency', cur]));
+    lines.push('');
+    lines.push(csvRow(['Metric', 'Value']));
+    lines.push(csvRow(['Total revenue', r.totalRevenue]));
+    lines.push(csvRow(['Total bookings', r.totalBookings]));
+    lines.push(csvRow(['Avg booking value', r.avgValue]));
+    lines.push(csvRow(['Utilisation %', r.utilization]));
+    lines.push(csvRow(['Promos applied', r.promoCount]));
+    lines.push(csvRow(['Total discounted', r.totalDiscount]));
+    lines.push(csvRow(['Bookings via LINE app', r.channel.line]));
+    lines.push(csvRow(['Bookings walk-in', r.channel.walkin]));
+    lines.push('');
+    // Daily breakdown
+    lines.push(csvRow(['Date', 'Day', 'Bookings', 'Revenue (' + cur + ')']));
+    r.byDay.forEach(function (d) {
+      lines.push(csvRow([d.date, DOW[d.dateObj.getDay()], d.count, d.revenue]));
+    });
+    lines.push(csvRow(['Total', '', r.totalBookings, r.totalRevenue]));
+    lines.push('');
+    // Bay split
+    lines.push(csvRow(['Bay', 'Bookings', 'Slots (30-min)', 'Revenue (' + cur + ')']));
+    r.byBay.forEach(function (b) {
+      lines.push(csvRow([DL.CONFIG.ROOM_NAMES[b.room], b.count, b.slots, b.revenue]));
+    });
+    return lines.join('\r\n');
+  }
+  function fmtDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+  $('exportBtn').onclick = function () {
+    const r = DL.report(days);
+    // Prepend a UTF-8 BOM so Excel renders the ฿ symbol correctly.
+    const blob = new Blob(['﻿' + buildCSV(r)], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'fairway-report-' + days + 'd-' + fmtDate(new Date()) + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  };
 
   // ---- live sync ----
   DL.onChange(function () { render(); });

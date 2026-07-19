@@ -47,9 +47,22 @@ dashboard → the customer app's availability updates to match.
 - Bays are interchangeable → the customer never picks one; a free bay is
   auto-assigned
 
+**Editable at runtime (staff Pricing panel on the dashboard):**
+
+- Base prices (per hour / per 30 min) and currency symbol — defaults 30 min
+  ฿400 · 1 hr ฿600
+- Promotions: a flexible engine with **percent-off / free-minutes / fixed-amount**
+  discounts and optional conditions — minimum duration, days of week, time
+  window (happy hour), **campaign start/end dates**, and a **promo code** the
+  customer enters. The best single eligible promo applies (no stacking).
+- Ships with one default promo — **3 hrs = pay 2 (last hour free)** — which staff
+  can edit, disable, or delete.
+- Every booking stores its own price + discount at creation, so editing pricing
+  never rewrites past bookings or the Reports history.
+
 **Cosmetic / mocked (not yet signed off — treat as proposals):**
 
-- Pricing ladder: 30 min ฿400 · 1 hr ฿600 · **3 hrs = pay 2 (last hour free)**
+- The default baht amounts above
 - QR/PromptPay + bank details, the 2-second "slip verification", slip upload
 - "Fairway Club" branding, colours, copy
 - Seed bookings and the 13 days of report history (synthetic; historical bay

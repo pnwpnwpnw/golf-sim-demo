@@ -22,14 +22,23 @@
  *     • Venue shape ........... 2 bays
  *     • Status model .......... pending-payment → confirmed | cancelled ; blocked
  *
- *   PRICING (demo values — treat as cosmetic until client signs off):
- *     • 30 min ........ ฿400
- *     • 1 hour ........ ฿600
- *     • longer ........ composed of hours + half-hour (e.g. 1.5 h = ฿1,000)
- *     • 3 hours ....... last hour FREE → pay 2 h = ฿1,200 (promo rule)
+ *   PRICING & PROMOS — now EDITABLE AT RUNTIME (staff Pricing panel on the
+ *   dashboard). Live values live in state.settings, NOT in CONFIG. The CONFIG
+ *   PRICE_* / CURRENCY / PROMO_FREE_LAST_HOUR_AT entries are only the seed
+ *   defaults for defaultSettings(); once settings are persisted, getSettings()
+ *   wins and editing CONFIG has no effect. Read prices via getSettings() /
+ *   basePrice() / evaluatePromos() / priceFor(dur, ctx) — never CONFIG.PRICE_*.
+ *     • Default base ......... 30 min ฿400 · 1 hour ฿600 (hours + half-hour)
+ *     • Default promo ........ 3 hours → last hour free (pay 2 h = ฿1,200)
+ *     • Promo engine ......... percent / free-minutes / fixed-amount discounts,
+ *                              with conditions: min duration, days of week,
+ *                              time window (happy hour), campaign date range,
+ *                              and optional promo code. Best single promo wins.
+ *     • Each booking stores its own price + discount + promoName at creation,
+ *       so changing settings never rewrites historical bookings.
  *
  *   COSMETIC / mocked (safe to change, not decided):
- *     • The baht amounts above, currency symbol
+ *     • The default baht amounts, currency symbol
  *     • Seed bookings, customer names, the "slip verification" 2s delay
  *     • KPI thresholds, colours, copy
  *
@@ -59,22 +68,117 @@
     ROOM_NAMES: { 1: 'Bay 1', 2: 'Bay 2' },
   };
 
-  // ----- Pricing -------------------------------------------------------------
-  // 30 min = ฿400, 1 h = ฿600, longer = hours + optional half-hour.
-  // Promo: at 3 hours the last hour is free (pay for 2 h).
-  function priceFor(durationMin) {
-    let billable = durationMin;
-    if (durationMin >= CONFIG.PROMO_FREE_LAST_HOUR_AT) billable = durationMin - 60;
-    const hours = Math.floor(billable / 60);
-    const halves = Math.round((billable % 60) / 30);
-    return hours * CONFIG.PRICE_HOUR + halves * CONFIG.PRICE_HALF;
+  // ----- Editable settings (persisted in state) ------------------------------
+  // Pricing + a flexible promo engine live in saved state so staff can edit them
+  // from the Dashboard's Pricing panel. Defaults below reproduce the original
+  // hardcoded behaviour (30 min = ฿400, 1 h = ฿600, 3 h = last hour free).
+  function defaultSettings() {
+    return {
+      pricing: { hour: CONFIG.PRICE_HOUR, half: CONFIG.PRICE_HALF, currency: CONFIG.CURRENCY },
+      promos: [
+        {
+          id: 'promo_default_3h',
+          name: '3-hour deal — last hour free',
+          enabled: true,
+          discount: { type: 'free_minutes', value: 60 },
+          conditions: { minDuration: 180, daysOfWeek: [], timeWindow: null, code: null, validFrom: null, validUntil: null },
+        },
+      ],
+    };
   }
-  // What the same duration would cost WITHOUT the promo (for strike-through UI).
-  function priceWithoutPromo(durationMin) {
+
+  // Read settings from state, back-filling any missing piece with defaults so
+  // callers never crash on partial/old state.
+  function getSettings() {
+    const s = (loadState().settings) || {};
+    const d = defaultSettings();
+    return {
+      pricing: {
+        hour:     num(s.pricing && s.pricing.hour,     d.pricing.hour),
+        half:     num(s.pricing && s.pricing.half,     d.pricing.half),
+        currency: (s.pricing && s.pricing.currency) || d.pricing.currency,
+      },
+      promos: Array.isArray(s.promos) ? s.promos : d.promos,
+    };
+  }
+  function num(v, fallback) { return (typeof v === 'number' && !isNaN(v)) ? v : fallback; }
+
+  // ----- Pricing -------------------------------------------------------------
+  // Base (undiscounted) price for a duration: hours + optional half-hour.
+  function basePrice(durationMin) {
+    const p = getSettings().pricing;
     const hours = Math.floor(durationMin / 60);
     const halves = Math.round((durationMin % 60) / 30);
-    return hours * CONFIG.PRICE_HOUR + halves * CONFIG.PRICE_HALF;
+    return hours * p.hour + halves * p.half;
   }
+  // Back-compat alias used by the customer app's strike-through UI.
+  function priceWithoutPromo(durationMin) { return basePrice(durationMin); }
+
+  // Is a promo eligible for this duration + context? ctx = { date, start, code }.
+  // A condition that needs context we don't have (day/time/code) makes the promo
+  // ineligible — so context-free callers only ever get duration-only promos.
+  function promoEligible(promo, durationMin, ctx) {
+    if (!promo || !promo.enabled) return false;
+    const c = promo.conditions || {};
+    ctx = ctx || {};
+    if (c.minDuration && durationMin < c.minDuration) return false;
+    // Campaign window: the booking's session date must fall within [from, until]
+    // (inclusive). ISO YYYY-MM-DD strings compare correctly lexicographically.
+    if (c.validFrom || c.validUntil) {
+      if (!ctx.date) return false;
+      if (c.validFrom && ctx.date < c.validFrom) return false;
+      if (c.validUntil && ctx.date > c.validUntil) return false;
+    }
+    if (Array.isArray(c.daysOfWeek) && c.daysOfWeek.length) {
+      if (!ctx.date) return false;
+      const dow = new Date(ctx.date + 'T00:00:00').getDay();
+      if (c.daysOfWeek.indexOf(dow) === -1) return false;
+    }
+    if (c.timeWindow && (c.timeWindow.start != null || c.timeWindow.end != null)) {
+      if (ctx.start == null) return false;
+      const s = c.timeWindow.start != null ? c.timeWindow.start : CONFIG.OPEN_MIN;
+      const e = c.timeWindow.end != null ? c.timeWindow.end : CONFIG.CLOSE_MIN;
+      if (ctx.start < s || ctx.start >= e) return false;
+    }
+    if (c.code) {
+      if (!ctx.code || String(ctx.code).trim().toUpperCase() !== String(c.code).trim().toUpperCase()) return false;
+    }
+    return true;
+  }
+
+  // Discount (in currency) a single promo yields on a duration.
+  function promoDiscount(promo, durationMin) {
+    const base = basePrice(durationMin);
+    const d = promo.discount || {};
+    if (d.type === 'percent')      return Math.round(base * (num(d.value, 0) / 100));
+    if (d.type === 'amount')       return Math.min(num(d.value, 0), base);
+    if (d.type === 'free_minutes') {
+      const freeMin = Math.min(num(d.value, 0), durationMin);
+      return base - basePrice(durationMin - freeMin);
+    }
+    return 0;
+  }
+
+  // Evaluate all promos; apply the single best (largest discount). No stacking.
+  function evaluatePromos(durationMin, ctx) {
+    const base = basePrice(durationMin);
+    let best = null, bestAmt = 0;
+    getSettings().promos.forEach(function (promo) {
+      if (!promoEligible(promo, durationMin, ctx)) return;
+      const amt = promoDiscount(promo, durationMin);
+      if (amt > bestAmt) { bestAmt = amt; best = promo; }
+    });
+    return {
+      base: base,
+      finalPrice: Math.max(0, base - bestAmt),
+      discount: bestAmt,
+      promoName: best ? best.name : null,
+      promoId: best ? best.id : null,
+    };
+  }
+
+  // Public price: final (post-promo) price for a duration. ctx optional.
+  function priceFor(durationMin, ctx) { return evaluatePromos(durationMin, ctx).finalPrice; }
 
   // ----- Ref-code generator (LOCKED format: GS-XXXXX) ------------------------
   // Uses Crockford-ish base32 (no I, L, O, U) so codes are easy to read aloud.
@@ -136,7 +240,7 @@
 
   // ----- Storage read/write --------------------------------------------------
   function emptyState() {
-    return { bookings: [], seededAt: null, seedVersion: 0 };
+    return { bookings: [], settings: defaultSettings(), seededAt: null, seedVersion: 0 };
   }
 
   function loadState() {
@@ -190,8 +294,39 @@
     // pricing
     priceFor,
     priceWithoutPromo,
+    basePrice,
+    evaluatePromos,
     money: function (n) {
-      return CONFIG.CURRENCY + Number(n).toLocaleString('en-US');
+      return getSettings().pricing.currency + Number(n).toLocaleString('en-US');
+    },
+    // Escape user-entered text before innerHTML (promo names, codes, etc.).
+    esc: function (s) {
+      return String(s).replace(/[&<>"']/g, function (ch) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+      });
+    },
+    // Human label for a discount, shared by the customer chips and staff panel
+    // so the two never drift. `short` = compact upper-case for the phone tag.
+    discountLabel: function (discount, short) {
+      if (!discount) return '';
+      const cur = getSettings().pricing.currency;
+      if (discount.type === 'percent') return discount.value + (short ? '% OFF' : '% off');
+      if (discount.type === 'free_minutes') {
+        const lbl = durationLabel(discount.value);
+        return short ? (lbl.toUpperCase() + ' FREE') : (lbl + ' free');
+      }
+      return cur + discount.value + (short ? ' OFF' : ' off');
+    },
+
+    // --- settings (editable pricing + promos) --------------------------------
+    getSettings: getSettings,
+    defaultSettings: defaultSettings,
+    // Persist a full settings object (Pricing panel sends the whole thing).
+    saveSettings: function (settings) {
+      const state = loadState();
+      state.settings = settings;
+      saveState(state, { type: 'settings' });
+      return getSettings();
     },
 
     // --- reads ---------------------------------------------------------------
@@ -259,6 +394,7 @@
     createPendingBooking: function (data) {
       const state = loadState();
       const duration = data.duration || CONFIG.SLOT_MINUTES;
+      const ev = evaluatePromos(duration, { date: data.date, start: data.start, code: data.code });
       const booking = {
         id: uid(),
         ref: makeRefCode(),
@@ -268,7 +404,9 @@
         duration: duration,
         customerName: data.customerName || 'Guest',
         phone: data.phone || '',
-        price: data.price != null ? data.price : priceFor(duration),
+        price: data.price != null ? data.price : ev.finalPrice,
+        discount: data.discount != null ? data.discount : ev.discount,
+        promoName: data.promoName !== undefined ? data.promoName : ev.promoName,
         status: 'pending-payment',
         source: data.source || 'customer',
         createdAt: new Date().toISOString(),
@@ -283,6 +421,7 @@
     createConfirmedBooking: function (data) {
       const state = loadState();
       const duration = data.duration || CONFIG.SLOT_MINUTES;
+      const ev = evaluatePromos(duration, { date: data.date, start: data.start, code: data.code });
       const booking = {
         id: uid(),
         ref: makeRefCode(),
@@ -292,7 +431,9 @@
         duration: duration,
         customerName: data.customerName || 'Walk-in',
         phone: data.phone || '',
-        price: data.price != null ? data.price : priceFor(duration),
+        price: data.price != null ? data.price : ev.finalPrice,
+        discount: data.discount != null ? data.discount : ev.discount,
+        promoName: data.promoName !== undefined ? data.promoName : ev.promoName,
         status: 'confirmed',
         source: data.source || 'walk-in',
         createdAt: new Date().toISOString(),
@@ -437,11 +578,15 @@
       bookings.forEach(function (b) { const h = Math.floor(b.start / 60); if (hourMap[h] != null) hourMap[h]++; });
       const byHour = Object.keys(hourMap).map(function (h) { return { hour: +h, count: hourMap[h] }; });
 
-      // Duration mix (session counts per offered duration).
-      const durMap = {};
-      CONFIG.DURATIONS.forEach(function (d) { durMap[d] = 0; });
-      bookings.forEach(function (b) { const dd = durOf(b); if (durMap[dd] != null) durMap[dd]++; });
-      const byDuration = CONFIG.DURATIONS.map(function (d) { return { duration: d, count: durMap[d] }; });
+      // Duration mix (session counts per offered duration; `promo` = how many of
+      // them actually received a discount, so the chart can flag real promo use).
+      const durMap = {}, durPromo = {};
+      CONFIG.DURATIONS.forEach(function (d) { durMap[d] = 0; durPromo[d] = 0; });
+      bookings.forEach(function (b) {
+        const dd = durOf(b);
+        if (durMap[dd] != null) { durMap[dd]++; if ((b.discount || 0) > 0) durPromo[dd]++; }
+      });
+      const byDuration = CONFIG.DURATIONS.map(function (d) { return { duration: d, count: durMap[d], promo: durPromo[d] }; });
 
       // Bay split (occupied 30-min slots per bay = utilisation share).
       const bayMap = {}; CONFIG.ROOMS.forEach(function (r) { bayMap[r] = { count: 0, slots: 0, revenue: 0 }; });
@@ -462,7 +607,10 @@
       const totalBookings = bookings.length;
       const totalSlots = bookings.reduce(function (a, b) { return a + durOf(b) / CONFIG.SLOT_MINUTES; }, 0);
       const capacitySlots = slotStarts().length * CONFIG.ROOMS.length * days;
-      const promoCount = bookings.filter(function (b) { return durOf(b) >= CONFIG.PROMO_FREE_LAST_HOUR_AT; }).length;
+      // Promo usage now = any booking that actually received a discount (works
+      // for every promo type staff configure, not just the old 3-hour rule).
+      const promoCount = bookings.filter(function (b) { return (b.discount || 0) > 0; }).length;
+      const totalDiscount = bookings.reduce(function (a, b) { return a + (b.discount || 0); }, 0);
 
       return {
         days: days,
@@ -476,6 +624,7 @@
         avgValue: totalBookings ? Math.round(totalRevenue / totalBookings) : 0,
         utilization: capacitySlots ? Math.round((totalSlots / capacitySlots) * 100) : 0,
         promoCount: promoCount,
+        totalDiscount: totalDiscount,
       };
     },
 
@@ -561,7 +710,7 @@
     // Idempotent: only seeds once per version (tracked via seedVersion).
     seedIfEmpty: function () {
       const state = loadState();
-      const SEED_VERSION = 6; // bumped: + 13 days of history for the reports page
+      const SEED_VERSION = 7; // bumped: editable settings + promo metadata on bookings
       if (state.seedVersion === SEED_VERSION) return;
 
       const dates = windowDates();
@@ -589,6 +738,9 @@
 
       const fresh = emptyState();
       function pushSeed(s) {
+        const ev = s.status === 'blocked'
+          ? { finalPrice: 0, discount: 0, promoName: null }
+          : evaluatePromos(s.dur, { date: s.date, start: s.start });
         fresh.bookings.push({
           id: uid(),
           ref: makeRefCode(),
@@ -598,7 +750,9 @@
           duration: s.dur,
           customerName: s.customerName,
           phone: s.phone,
-          price: s.status === 'blocked' ? 0 : priceFor(s.dur),
+          price: ev.finalPrice,
+          discount: ev.discount,
+          promoName: ev.promoName,
           status: s.status,
           source: s.source,
           createdAt: new Date().toISOString(),

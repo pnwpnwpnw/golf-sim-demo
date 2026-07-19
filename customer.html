@@ -329,6 +329,8 @@
       <input id="in-name" class="field" placeholder="e.g. Krit S." autocomplete="off" />
       <div class="section-label">Phone</div>
       <input id="in-phone" class="field" placeholder="08X-XXX-XXXX" inputmode="tel" />
+      <div class="section-label">Promo code <span style="text-transform:none;letter-spacing:0;color:var(--muted);font-weight:400">(optional)</span></div>
+      <input id="in-code" class="field" placeholder="Enter code" style="text-transform:uppercase" autocomplete="off" />
 
       <div class="banner-note info" style="margin-top:16px">
         <span>◷</span><div><b>5-minute buffer</b> is reserved after each session for bay reset — this is a locked-in rule, not adjustable.</div>
@@ -460,7 +462,11 @@
 
   // ---- selection state ----
   // `room` is auto-assigned (not chosen by the customer) once a start is picked.
-  const state = { date: DL.todayYmd(), room: null, duration: 60, start: null, lastBooking: null };
+  const state = { date: DL.todayYmd(), room: null, duration: 60, start: null, code: '', lastBooking: null };
+  // Pricing context for the current selection (drives promos that depend on
+  // day / start time / promo code). Start is null until a slot is chosen.
+  function priceCtx() { return { date: state.date, start: state.start, code: state.code }; }
+  function promoShort(p) { return DL.discountLabel(p.discount, true); }
 
   const $ = function (id) { return document.getElementById(id); };
   const screens = ['pick','details','pay','verify','success','fail','mine'];
@@ -496,16 +502,21 @@
   // ---- render duration chips ----
   function renderDurations() {
     const strip = $('durStrip'); strip.innerHTML = '';
+    const settings = DL.getSettings();
     DL.CONFIG.DURATIONS.forEach(function (dur) {
-      const promo = dur >= DL.CONFIG.PROMO_FREE_LAST_HOUR_AT;
-      const price = DL.priceFor(dur);
-      const full = DL.priceWithoutPromo(dur);
+      // Price with everything we know so far: the selected day always, the
+      // start time once a slot is picked, any promo code entered. Promos whose
+      // remaining conditions can't be checked yet (e.g. a time window before a
+      // start is chosen) simply don't apply until they can.
+      const ev = DL.evaluatePromos(dur, priceCtx());
+      const hasPromo = ev.discount > 0;
+      const promo = hasPromo ? settings.promos.find(function (p) { return p.id === ev.promoId; }) : null;
       const chip = document.createElement('div');
       chip.className = 'dur-chip' + (dur === state.duration ? ' active' : '');
       chip.innerHTML =
-        (promo ? '<div class="promo-tag">LAST HR FREE</div>' : '') +
+        (promo ? '<div class="promo-tag">' + promoShort(promo) + '</div>' : '') +
         '<div class="dl">' + DL.durationLabel(dur) + '</div>' +
-        '<div class="dp">' + (promo ? '<span class="strike">' + DL.money(full) + '</span>' : '') + DL.money(price) + '</div>';
+        '<div class="dp">' + (hasPromo ? '<span class="strike">' + DL.money(ev.base) + '</span>' : '') + DL.money(ev.finalPrice) + '</div>';
       chip.onclick = function () {
         state.duration = dur;
         // keep the selected start only if it still fits the new duration in some bay
@@ -549,11 +560,13 @@
     const btn = $('ctaBtn');
     if (state.start == null) {
       $('cta-l1').textContent = 'Select a start time';
-      $('cta-l2').textContent = DL.durationLabel(state.duration) + ' session · ' + DL.money(DL.priceFor(state.duration));
+      $('cta-l2').textContent = DL.durationLabel(state.duration) + ' session · ' + DL.money(DL.priceFor(state.duration, { date: state.date, code: state.code }));
       btn.disabled = true;
     } else {
+      const ev = DL.evaluatePromos(state.duration, priceCtx());
+      const priceTxt = ev.discount > 0 ? DL.money(ev.finalPrice) + ' (promo)' : DL.money(ev.finalPrice);
       $('cta-l1').textContent = DL.rangeLabel(state.start, state.duration) + ' · ' + DL.durationLabel(state.duration);
-      $('cta-l2').textContent = friendlyDate(state.date) + ' · ' + DL.money(DL.priceFor(state.duration)) + ' · bay auto-assigned';
+      $('cta-l2').textContent = friendlyDate(state.date) + ' · ' + priceTxt + ' · bay auto-assigned';
       btn.disabled = false;
     }
   }
@@ -568,15 +581,20 @@
   // ---- CTA click: pick -> details ----
   $('ctaBtn').onclick = function () { goDetails(); };
 
-  function goDetails() {
+  function renderDetailSummary() {
+    state.code = ($('in-code').value || '').trim();
     $('d-room').textContent = DL.CONFIG.ROOM_NAMES[state.room] + ' · auto-assigned';
     $('d-date').textContent = friendlyDate(state.date);
     $('d-time').textContent = DL.rangeLabel(state.start, state.duration);
     $('d-dur').textContent = DL.durationLabel(state.duration);
-    const promo = state.duration >= DL.CONFIG.PROMO_FREE_LAST_HOUR_AT;
-    $('d-promo-row').style.display = promo ? 'flex' : 'none';
-    if (promo) $('d-promo').textContent = 'Last hour free (−' + DL.money(DL.priceWithoutPromo(state.duration) - DL.priceFor(state.duration)) + ')';
-    $('d-price').textContent = DL.money(DL.priceFor(state.duration));
+    const ev = DL.evaluatePromos(state.duration, priceCtx());
+    $('d-promo-row').style.display = ev.discount > 0 ? 'flex' : 'none';
+    if (ev.discount > 0) $('d-promo').textContent = ev.promoName + ' (−' + DL.money(ev.discount) + ')';
+    $('d-price').textContent = DL.money(ev.finalPrice);
+  }
+
+  function goDetails() {
+    renderDetailSummary();
     show('details');
     // repurpose CTA button
     setCTA('Continue to payment ›', function () {
@@ -588,6 +606,18 @@
     $('cta-l2').textContent = 'Then transfer & send slip';
   }
 
+  // recompute the summary live as the customer types a promo code
+  let codeApplied = false;
+  $('in-code').addEventListener('input', function () {
+    renderDetailSummary();
+    // Toast once when a code first unlocks a discount tied to that code.
+    const ev = DL.evaluatePromos(state.duration, priceCtx());
+    const usesCode = ev.promoId && (DL.getSettings().promos.find(function (p) { return p.id === ev.promoId; }) || {}).conditions;
+    const nowApplied = !!(state.code && ev.discount > 0 && usesCode && usesCode.code);
+    if (nowApplied && !codeApplied) toast('Code applied — ' + ev.promoName);
+    codeApplied = nowApplied;
+  });
+
   function setCTA(label, fn) {
     const btn = $('ctaBtn'); btn.disabled = false; btn.textContent = label; btn.onclick = fn;
   }
@@ -598,7 +628,8 @@
 
   function goPay(name) {
     draft = { name: name, phone: $('in-phone').value.trim() };
-    $('pay-amount').textContent = DL.money(DL.priceFor(state.duration));
+    state.code = ($('in-code').value || '').trim();
+    $('pay-amount').textContent = DL.money(DL.priceFor(state.duration, priceCtx()));
     // preview ref shown before actual creation is cosmetic; real code is minted on submit
     $('pay-ref').textContent = 'on submit';
     $('uploadZone').classList.remove('filled');
@@ -638,7 +669,7 @@
     // appears in the dashboard's Pending Slips queue during verification.
     pendingBooking = DL.createPendingBooking({
       room: state.room, date: state.date, start: state.start, duration: state.duration,
-      customerName: draft.name, phone: draft.phone, source: 'customer',
+      customerName: draft.name, phone: draft.phone, source: 'customer', code: state.code,
     });
     state.lastBooking = pendingBooking;
 
@@ -678,8 +709,8 @@
   $('succMine').onclick = function () { renderMine(); show('mine'); };
 
   function resetToPick() {
-    state.start = null; state.room = null;
-    $('in-name').value = ''; $('in-phone').value = '';
+    state.start = null; state.room = null; state.code = ''; codeApplied = false;
+    $('in-name').value = ''; $('in-phone').value = ''; $('in-code').value = '';
     $('failToggle').checked = false;
     $('ctaBtn').onclick = function () { goDetails(); };
     show('pick');

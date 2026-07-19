@@ -180,6 +180,37 @@
   .form-note { font-size:11.5px; color:var(--muted); margin-top:2px; }
   .slot-warn { font-size:12px; color:var(--danger); margin-top:6px; display:none; }
 
+  /* ---- pricing modal ---- */
+  .modal.wide { max-width: 520px; }
+  .pbody { max-height: 66vh; overflow-y: auto; }
+  .pr-section-label { font-family:'Inter'; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin:16px 0 10px; }
+  .pr-hint { font-family:'Inter'; text-transform:none; letter-spacing:0; color:var(--faint,#9AA6A0); font-weight:400; font-size:11px; }
+  .cur-input { display:flex; align-items:center; border:1.5px solid var(--line); border-radius:10px; padding:0 12px; background:#fff; }
+  .cur-input:focus-within { border-color:var(--green); box-shadow:0 0 0 3px rgba(31,92,61,.1); }
+  .cur-input span { color:var(--muted); font-size:14px; }
+  .cur-input .suf { margin-left:2px; }
+  .cur-input input { border:none; outline:none; padding:11px 8px; font-family:'Inter'; font-size:14px; width:100%; background:transparent; }
+  .promo-card { border:1px solid var(--line); border-radius:12px; padding:12px 13px; margin-top:10px; display:flex; align-items:center; gap:12px; }
+  .promo-card .pc-main { flex:1; min-width:0; }
+  .promo-card .pc-name { font-family:'Inter'; font-weight:600; font-size:14px; }
+  .promo-card .pc-name.off { color:var(--muted); text-decoration:line-through; }
+  .promo-card .pc-desc { font-size:11.5px; color:var(--muted); margin-top:3px; }
+  .promo-card .pc-edit { font-family:'Inter'; font-size:12px; color:var(--green-mid); font-weight:600; cursor:pointer; padding:6px 10px; border:1px solid var(--green-line); border-radius:8px; background:#fff; }
+  .promo-card .pc-edit:hover { background:var(--green-soft); }
+  /* mini switch */
+  .mini-switch { position:relative; width:38px; height:22px; flex-shrink:0; cursor:pointer; }
+  .mini-switch input { opacity:0; width:0; height:0; }
+  .mini-switch .tk { position:absolute; inset:0; background:#CBD5CD; border-radius:20px; transition:.15s; }
+  .mini-switch .tk::before { content:''; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.15s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  .mini-switch input:checked + .tk { background:var(--green); }
+  .mini-switch input:checked + .tk::before { transform:translateX(16px); }
+  .day-chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .day-chip { padding:7px 0; width:40px; text-align:center; border:1.5px solid var(--line); border-radius:9px; background:#fff; font-family:'Inter'; font-size:12px; font-weight:600; color:var(--ink); cursor:pointer; user-select:none; }
+  .day-chip.on { background:var(--green-soft); border-color:var(--green); color:var(--green-deep); }
+  .chk-line { display:flex; align-items:center; gap:8px; font-family:'Inter'; text-transform:none; letter-spacing:0; font-size:13px; color:var(--ink); font-weight:500; cursor:pointer; }
+  .chk-line input { width:16px; height:16px; accent-color:var(--green); }
+  .empty-promos { font-size:12.5px; color:var(--muted); padding:14px; text-align:center; border:1px dashed var(--line); border-radius:12px; margin-top:10px; }
+
   /* toast */
   .toast-wrap { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:200; }
   .toast { background:#16211C; color:#fff; font-size:13px; padding:11px 18px; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.28); opacity:0; transform:translateY(12px); transition:.2s; display:flex; align-items:center; gap:9px; }
@@ -214,6 +245,7 @@
         <div class="date" id="todayDate"></div>
       </div>
       <div class="head-actions">
+        <button class="btn ghost" id="pricingBtn">💷 Pricing</button>
         <button class="btn ghost" id="blockBtn">⊘ Block time</button>
         <button class="btn" id="addBtn">＋ Add walk-in booking</button>
       </div>
@@ -297,6 +329,88 @@
       <div class="modal-foot">
         <button class="btn ghost" id="modalCancel">Cancel</button>
         <button class="btn" id="modalSave">Save booking</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRICING & PROMOTIONS MODAL -->
+  <div class="modal-bg" id="priceBg">
+    <div class="modal wide">
+      <div class="modal-head">
+        <h3 id="priceTitle">Pricing &amp; promotions</h3>
+        <div class="x" id="priceX">✕</div>
+      </div>
+
+      <!-- LIST VIEW -->
+      <div class="modal-body pbody" id="priceListView">
+        <div class="pr-section-label">Base prices</div>
+        <div class="fld-row">
+          <div class="fld"><label>Price / hour</label>
+            <div class="cur-input"><span id="curSym1">฿</span><input id="prHour" type="number" min="0" step="50" /></div>
+          </div>
+          <div class="fld"><label>Price / 30 min</label>
+            <div class="cur-input"><span id="curSym2">฿</span><input id="prHalf" type="number" min="0" step="50" /></div>
+          </div>
+        </div>
+        <div class="fld"><label>Currency symbol</label><input id="prCur" maxlength="3" style="max-width:120px" /></div>
+
+        <div class="pr-section-label" style="margin-top:6px">Promotions <span class="pr-hint" id="promoCount"></span></div>
+        <div id="promoList"></div>
+        <button class="btn ghost sm" id="addPromoBtn" style="margin-top:12px">＋ Add promotion</button>
+
+        <div class="form-note" style="margin-top:14px">Changes apply to <b>new</b> bookings only, and take effect in this browser. Past bookings keep their original price.</div>
+      </div>
+
+      <!-- EDITOR VIEW -->
+      <div class="modal-body pbody hidden" id="priceEditView">
+        <div class="fld"><label>Promotion name</label><input id="epName" placeholder="e.g. Weekday morning 20% off" /></div>
+
+        <div class="fld"><label>Discount type</label>
+          <div class="seg" id="epType">
+            <button data-t="percent">% off</button>
+            <button data-t="free_minutes">Free minutes</button>
+            <button data-t="amount">฿ off</button>
+          </div>
+        </div>
+        <div class="fld"><label id="epValLabel">Percent off</label>
+          <div class="cur-input"><span id="epValPrefix"></span><input id="epValue" type="number" min="0" step="1" /><span id="epValSuffix" class="suf"></span></div>
+        </div>
+
+        <div class="pr-section-label">Conditions <span class="pr-hint">leave blank = always applies</span></div>
+        <div class="fld"><label>Minimum duration</label>
+          <select id="epMinDur"></select>
+        </div>
+        <div class="fld"><label>Days of week <span class="pr-hint">none = any day</span></label>
+          <div class="day-chips" id="epDays"></div>
+        </div>
+        <div class="fld">
+          <label class="chk-line"><input type="checkbox" id="epTimeOn" /> Only during a time window (happy hour)</label>
+          <div class="fld-row hidden" id="epTimeRow" style="margin-top:8px">
+            <div><label>From</label><select id="epTimeStart"></select></div>
+            <div><label>To</label><select id="epTimeEnd"></select></div>
+          </div>
+        </div>
+        <div class="fld">
+          <label class="chk-line"><input type="checkbox" id="epDatesOn" /> Campaign period (start / end date)</label>
+          <div class="fld-row hidden" id="epDatesRow" style="margin-top:8px">
+            <div><label>Starts</label><input type="date" id="epDateFrom" /></div>
+            <div><label>Ends</label><input type="date" id="epDateUntil" /></div>
+          </div>
+        </div>
+        <div class="fld"><label>Promo code <span class="pr-hint">optional — customer must enter it</span></label>
+          <input id="epCode" placeholder="e.g. VIP300" style="text-transform:uppercase" />
+        </div>
+        <div class="slot-warn" id="epWarn"></div>
+      </div>
+
+      <div class="modal-foot" id="priceListFoot">
+        <button class="btn ghost" id="priceCancel">Cancel</button>
+        <button class="btn" id="priceSave">Save changes</button>
+      </div>
+      <div class="modal-foot hidden" id="priceEditFoot">
+        <button class="btn reject" id="epDelete" style="margin-right:auto">Delete</button>
+        <button class="btn ghost" id="epCancel">Back</button>
+        <button class="btn" id="epDone">Done</button>
       </div>
     </div>
   </div>
@@ -493,8 +607,10 @@
     // start time + duration selects
     fillHours(prefill);
     fillDurations(mode);
-    ds.onchange = function(){ fillHours(); checkSlot(); };
-    $('mHour').onchange = checkSlot;
+    // Date/time drive which promos apply, so re-price the duration ladder when
+    // either changes (preserving the chosen duration).
+    ds.onchange = function(){ fillHours(); fillDurations(mode); checkSlot(); };
+    $('mHour').onchange = function(){ fillDurations(mode); checkSlot(); };
     $('mDur').onchange = checkSlot;
 
     $('mName').value=''; $('mPhone').value=''; $('mReason').value='';
@@ -507,13 +623,20 @@
     DL.slotStarts().forEach(function(s){ const o=document.createElement('option'); o.value=s; o.textContent=DL.timeLabel(s); if(prefill&&prefill.start===s)o.selected=true; hs.appendChild(o); });
   }
   function fillDurations(mode) {
-    const dsel = $('mDur'); dsel.innerHTML='';
+    const dsel = $('mDur');
+    const keep = dsel.value ? +dsel.value : 60; // preserve selection across re-fills
+    dsel.innerHTML='';
+    // Price with the modal's current date + start so the ladder matches exactly
+    // what createConfirmedBooking will charge (day/time/campaign promos included).
+    const date = $('mDate').value, start = +$('mHour').value;
     DL.CONFIG.DURATIONS.forEach(function(dur){
       const o=document.createElement('option'); o.value=dur;
-      // Blocks are free; walk-ins show the price ladder incl. the 3-h promo.
-      o.textContent = DL.durationLabel(dur) + (mode==='block' ? '' :
-        ' · ' + DL.money(DL.priceFor(dur)) + (dur >= DL.CONFIG.PROMO_FREE_LAST_HOUR_AT ? ' (last hr free)' : ''));
-      if (dur===60) o.selected=true;
+      if (mode==='block') { o.textContent = DL.durationLabel(dur); }
+      else {
+        const ev = DL.evaluatePromos(dur, { date: date, start: start });
+        o.textContent = DL.durationLabel(dur) + ' · ' + DL.money(ev.finalPrice) + (ev.discount > 0 ? ' (promo)' : '');
+      }
+      if (dur===keep) o.selected=true;
       dsel.appendChild(o);
     });
   }
@@ -553,6 +676,208 @@
     const idx = winDates.findIndex(function(d){ return DL.ymd(d)===sel.date; });
     if (idx>=0) dayIdx = idx;
     renderAll();
+  };
+
+  // ---------- Pricing & promotions modal ----------
+  let pWorking = null;        // working copy of settings while editing
+  let editingId = null;       // promo id being edited in the editor view
+  let editDays = [];          // day-of-week selection in the editor
+
+  function openPricing() {
+    pWorking = JSON.parse(JSON.stringify(DL.getSettings()));
+    $('prHour').value = pWorking.pricing.hour;
+    $('prHalf').value = pWorking.pricing.half;
+    $('prCur').value = pWorking.pricing.currency;
+    syncCurrencySymbols();
+    showPriceView('list');
+    renderPromoList();
+    $('priceBg').classList.add('open');
+  }
+  function closePricing() { $('priceBg').classList.remove('open'); pWorking = null; }
+  function showPriceView(which) {
+    $('priceListView').classList.toggle('hidden', which !== 'list');
+    $('priceListFoot').classList.toggle('hidden', which !== 'list');
+    $('priceEditView').classList.toggle('hidden', which !== 'edit');
+    $('priceEditFoot').classList.toggle('hidden', which !== 'edit');
+    $('priceTitle').textContent = which === 'edit' ? 'Edit promotion' : 'Pricing & promotions';
+    $('priceListView').scrollTop = 0; $('priceEditView').scrollTop = 0;
+  }
+  function syncCurrencySymbols() {
+    const c = $('prCur').value || pWorking.pricing.currency;
+    $('curSym1').textContent = c; $('curSym2').textContent = c;
+  }
+  $('prCur').addEventListener('input', syncCurrencySymbols);
+
+  function promoDesc(p) {
+    const disc = DL.discountLabel(p.discount, false);
+    const c = p.conditions || {}; const parts = [];
+    if (c.minDuration) parts.push('≥ ' + DL.durationLabel(c.minDuration));
+    if (Array.isArray(c.daysOfWeek) && c.daysOfWeek.length) parts.push(daysLabel(c.daysOfWeek));
+    if (c.timeWindow && (c.timeWindow.start != null || c.timeWindow.end != null))
+      parts.push(DL.timeLabel(c.timeWindow.start) + '–' + DL.timeLabel(c.timeWindow.end));
+    if (c.validFrom || c.validUntil) parts.push(dateRangeLabel(c.validFrom, c.validUntil));
+    if (c.code) parts.push('code ' + String(c.code).toUpperCase());
+    return disc + (parts.length ? ' · ' + parts.join(' · ') : ' · always');
+  }
+  function dateRangeLabel(from, until) {
+    const f = function (iso) { const d = new Date(iso + 'T00:00:00'); return d.getDate() + ' ' + MON[d.getMonth()]; };
+    if (from && until) return f(from) + '–' + f(until);
+    if (until) return 'until ' + f(until);
+    return 'from ' + f(from);
+  }
+  function daysLabel(days) {
+    const s = days.slice().sort(function(a,b){return a-b;}).join(',');
+    if (s === '1,2,3,4,5') return 'Weekdays';
+    if (s === '0,6') return 'Weekends';
+    return days.slice().sort(function(a,b){return a-b;}).map(function(d){return DOW[d];}).join(', ');
+  }
+
+  function renderPromoList() {
+    const box = $('promoList');
+    const promos = pWorking.promos;
+    $('promoCount').textContent = promos.length ? '· ' + promos.length : '';
+    if (!promos.length) { box.innerHTML = '<div class="empty-promos">No promotions yet. Add one below.</div>'; return; }
+    box.innerHTML = '';
+    promos.forEach(function (p) {
+      const card = document.createElement('div');
+      card.className = 'promo-card';
+      card.innerHTML =
+        '<label class="mini-switch"><input type="checkbox"' + (p.enabled ? ' checked' : '') + ' data-toggle="' + p.id + '"><span class="tk"></span></label>' +
+        '<div class="pc-main"><div class="pc-name' + (p.enabled ? '' : ' off') + '">' + DL.esc(p.name) + '</div>' +
+        '<div class="pc-desc">' + promoDesc(p) + '</div></div>' +
+        '<button class="pc-edit" data-edit="' + p.id + '">Edit</button>';
+      box.appendChild(card);
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-toggle]'), function (el) {
+      el.onchange = function () { const p = pWorking.promos.find(function(x){return x.id===el.dataset.toggle;}); if (p) p.enabled = el.checked; renderPromoList(); };
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('[data-edit]'), function (el) {
+      el.onclick = function () { openEditor(el.dataset.edit); };
+    });
+  }
+
+  // ---- editor ----
+  function fillPromoSelects() {
+    const md = $('epMinDur'); md.innerHTML = '<option value="">Any</option>';
+    DL.CONFIG.DURATIONS.forEach(function (d) { md.innerHTML += '<option value="' + d + '">' + DL.durationLabel(d) + '</option>'; });
+    const starts = DL.slotStarts();
+    const ends = starts.concat([DL.CONFIG.CLOSE_MIN]);
+    $('epTimeStart').innerHTML = starts.map(function (s) { return '<option value="' + s + '">' + DL.timeLabel(s) + '</option>'; }).join('');
+    $('epTimeEnd').innerHTML = ends.map(function (s) { return '<option value="' + s + '">' + DL.timeLabel(s) + '</option>'; }).join('');
+    const dc = $('epDays'); dc.innerHTML = '';
+    DOW.forEach(function (name, i) {
+      const chip = document.createElement('div'); chip.className = 'day-chip'; chip.textContent = name; chip.dataset.d = i;
+      chip.onclick = function () {
+        const idx = editDays.indexOf(i);
+        if (idx === -1) editDays.push(i); else editDays.splice(idx, 1);
+        chip.classList.toggle('on');
+      };
+      dc.appendChild(chip);
+    });
+  }
+  function setDiscType(t) {
+    Array.prototype.forEach.call($('epType').children, function (b) { b.classList.toggle('on', b.dataset.t === t); });
+    $('epType').dataset.t = t;
+    const cur = $('prCur').value || pWorking.pricing.currency;
+    if (t === 'percent') { $('epValLabel').textContent = 'Percent off'; $('epValPrefix').textContent = ''; $('epValSuffix').textContent = '%'; }
+    else if (t === 'free_minutes') { $('epValLabel').textContent = 'Minutes free'; $('epValPrefix').textContent = ''; $('epValSuffix').textContent = 'min'; }
+    else { $('epValLabel').textContent = 'Amount off'; $('epValPrefix').textContent = cur; $('epValSuffix').textContent = ''; }
+  }
+  Array.prototype.forEach.call($('epType').children, function (b) { b.onclick = function () { setDiscType(b.dataset.t); }; });
+  $('epTimeOn').onchange = function () { $('epTimeRow').classList.toggle('hidden', !this.checked); };
+  $('epDatesOn').onchange = function () { $('epDatesRow').classList.toggle('hidden', !this.checked); };
+
+  function openEditor(id) {
+    fillPromoSelects();
+    editingId = id;
+    const p = id ? pWorking.promos.find(function (x) { return x.id === id; }) : null;
+    editDays = p && p.conditions.daysOfWeek ? p.conditions.daysOfWeek.slice() : [];
+    Array.prototype.forEach.call($('epDays').children, function (chip) { chip.classList.toggle('on', editDays.indexOf(+chip.dataset.d) !== -1); });
+    $('epName').value = p ? p.name : '';
+    setDiscType(p ? p.discount.type : 'percent');
+    $('epValue').value = p ? p.discount.value : '';
+    $('epMinDur').value = p && p.conditions.minDuration ? p.conditions.minDuration : '';
+    const tw = p && p.conditions.timeWindow;
+    $('epTimeOn').checked = !!tw;
+    $('epTimeRow').classList.toggle('hidden', !tw);
+    $('epTimeStart').value = tw && tw.start != null ? tw.start : DL.CONFIG.OPEN_MIN;
+    $('epTimeEnd').value = tw && tw.end != null ? tw.end : DL.CONFIG.CLOSE_MIN;
+    $('epCode').value = p && p.conditions.code ? p.conditions.code : '';
+    const cf = p && p.conditions.validFrom, cu = p && p.conditions.validUntil;
+    const hasDates = !!(cf || cu);
+    $('epDatesOn').checked = hasDates;
+    $('epDatesRow').classList.toggle('hidden', !hasDates);
+    $('epDateFrom').value = cf || '';
+    $('epDateUntil').value = cu || '';
+    $('epWarn').style.display = 'none';
+    $('epDelete').style.display = id ? 'inline-flex' : 'none';
+    showPriceView('edit');
+  }
+  function readEditor() {
+    const name = $('epName').value.trim();
+    const type = $('epType').dataset.t || 'percent';
+    const value = Math.max(0, +$('epValue').value || 0);
+    if (!name) return { err: 'Please name this promotion.' };
+    if (value <= 0) return { err: 'Enter a discount value greater than 0.' };
+    if (type === 'percent' && value > 100) return { err: 'Percentage cannot exceed 100.' };
+    let timeWindow = null;
+    if ($('epTimeOn').checked) {
+      const st = +$('epTimeStart').value, en = +$('epTimeEnd').value;
+      if (en <= st) return { err: 'Time window “To” must be after “From”.' };
+      timeWindow = { start: st, end: en };
+    }
+    let validFrom = null, validUntil = null;
+    if ($('epDatesOn').checked) {
+      validFrom = $('epDateFrom').value || null;
+      validUntil = $('epDateUntil').value || null;
+      if (!validFrom && !validUntil) return { err: 'Set a start and/or end date, or uncheck the campaign period.' };
+      if (validFrom && validUntil && validUntil < validFrom) return { err: 'Campaign end date must be on or after the start date.' };
+    }
+    return {
+      promo: {
+        id: editingId || ('promo_' + Date.now().toString(36)),
+        name: name,
+        discount: { type: type, value: value },
+        conditions: {
+          minDuration: $('epMinDur').value ? +$('epMinDur').value : null,
+          daysOfWeek: editDays.slice().sort(function(a,b){return a-b;}),
+          timeWindow: timeWindow,
+          validFrom: validFrom,
+          validUntil: validUntil,
+          code: $('epCode').value.trim() ? $('epCode').value.trim().toUpperCase() : null,
+        },
+      },
+    };
+  }
+  $('epDone').onclick = function () {
+    const r = readEditor();
+    if (r.err) { $('epWarn').textContent = '⚠ ' + r.err; $('epWarn').style.display = 'block'; return; }
+    const existing = pWorking.promos.find(function (x) { return x.id === editingId; });
+    if (existing) {
+      existing.name = r.promo.name; existing.discount = r.promo.discount; existing.conditions = r.promo.conditions;
+    } else {
+      r.promo.enabled = true; pWorking.promos.push(r.promo);
+    }
+    showPriceView('list'); renderPromoList();
+  };
+  $('epDelete').onclick = function () {
+    pWorking.promos = pWorking.promos.filter(function (x) { return x.id !== editingId; });
+    showPriceView('list'); renderPromoList();
+  };
+  $('epCancel').onclick = function () { showPriceView('list'); };
+  $('addPromoBtn').onclick = function () { openEditor(null); };
+
+  $('pricingBtn').onclick = openPricing;
+  $('priceX').onclick = closePricing;
+  $('priceCancel').onclick = closePricing;
+  $('priceBg').onclick = function (e) { if (e.target === $('priceBg')) closePricing(); };
+  $('priceSave').onclick = function () {
+    pWorking.pricing.hour = Math.max(0, +$('prHour').value || 0);
+    pWorking.pricing.half = Math.max(0, +$('prHalf').value || 0);
+    pWorking.pricing.currency = $('prCur').value.trim() || '฿';
+    DL.saveSettings(pWorking);
+    closePricing();
+    toast('Pricing updated — applies to new bookings');
   };
 
   // ---------- render all + live sync ----------

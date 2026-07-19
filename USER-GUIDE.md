@@ -99,8 +99,24 @@ The staff home base. It has four parts:
 - A running list of the next confirmed, pending, and blocked bookings, with reference, customer, bay, when, and status.
 
 **Staff actions (top-right buttons):**
-- **＋ Add walk-in booking** — book someone at the counter; it's confirmed instantly.
+- **＋ Add walk-in booking** — book someone at the counter; it's confirmed instantly. The duration list shows the live price including any promo that applies to the chosen date/time.
 - **⊘ Block time** — mark a bay unavailable (maintenance, private event). Blocked time disappears from customer availability immediately.
+- **💷 Pricing** — edit prices and build promotions (see below).
+
+### Pricing & promotions
+
+Click **💷 Pricing** on the Dashboard to change what customers pay — no code editing.
+
+- **Base prices:** price per hour, price per 30 minutes, and the currency symbol.
+- **Promotions:** add as many as you like. Each promo has:
+  - **A discount type:** *% off*, *free minutes* (e.g. last hour free), or *฿ off* a fixed amount.
+  - **Optional conditions** (leave blank = always applies): minimum duration, specific **days of week**, a **time window** (happy hour, e.g. 09:00–12:00), a **campaign period** (start / end date), and an optional **promo code** the customer must type.
+  - Toggle each promo **on/off**, edit, or delete it.
+  - If more than one promo qualifies, the **biggest discount wins** (they don't stack).
+- Hit **Save changes** to apply. Edits affect **new bookings only** — past bookings keep the price they were made at, so Reports history stays accurate.
+- Note: changes take effect **in this browser** (the demo has no shared server), so a price edited here won't reach a real customer on a separate device.
+
+The customer app reflects it live: duration prices update, day/time promos apply once a slot is picked, and there's a **promo code** field on the details screen.
 
 ### Customers — the directory
 
