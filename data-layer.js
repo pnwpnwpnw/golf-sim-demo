@@ -494,6 +494,18 @@
       saveState(state, { type: 'remove' });
     },
 
+    // Override the price on an existing booking (staff correction — e.g. a
+    // walk-in was charged differently than the standard rate after the fact).
+    updatePrice: function (id, price) {
+      const state = loadState();
+      const b = state.bookings.find(function (x) { return x.id === id; });
+      if (!b) return null;
+      b.price = Math.max(0, Number(price) || 0);
+      b.updatedAt = new Date().toISOString();
+      saveState(state, { type: 'price', ref: b.ref });
+      return b;
+    },
+
     // --- KPIs (computed live from shared state — never hardcoded) ------------
     kpis: function () {
       const bookings = loadState().bookings;
