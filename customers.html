@@ -58,6 +58,11 @@
   .page-head h1 { font-family:'Inter'; font-size:25px; font-weight:600; letter-spacing:-.015em; }
   .page-head .sub { color:var(--muted); font-size:13.5px; margin-top:3px; font-family:'Inter'; }
 
+  .head-tools { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .btn-export { font-family:'Inter'; font-weight:600; font-size:13px; cursor:pointer; background:var(--green); color:#fff; border:none; padding:9px 15px; border-radius:11px; box-shadow:var(--shadow); transition:.12s; display:inline-flex; align-items:center; gap:7px; }
+  .btn-export:hover { background:var(--green-deep); }
+  .btn-export:active { transform:scale(.98); }
+
   /* search */
   .search { position:relative; }
   .search input { width:280px; max-width:60vw; padding:11px 14px 11px 36px; border:1px solid var(--line); border-radius:11px; font-family:'Inter'; font-size:14px; background:#fff; box-shadow:var(--shadow); }
@@ -161,9 +166,12 @@
         <h1>Customers</h1>
         <div class="sub" id="subLabel"></div>
       </div>
-      <div class="search">
-        <span class="mag">⌕</span>
-        <input id="searchInput" type="text" placeholder="Search name or phone…" autocomplete="off" />
+      <div class="head-tools">
+        <div class="search">
+          <span class="mag">⌕</span>
+          <input id="searchInput" type="text" placeholder="Search name or phone…" autocomplete="off" />
+        </div>
+        <button class="btn-export" id="exportBtn" title="Download the customer directory as a CSV file">⭳ Export CSV</button>
       </div>
     </div>
 
@@ -325,6 +333,30 @@
 
   function esc(s) { return String(s).replace(/[&<>"]/g, function (ch) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' })[ch]; }); }
 
+  // ---------- CSV export ----------
+  // Quote a field per RFC 4180: wrap in quotes and double any inner quotes when
+  // it contains a comma, quote, or newline.
+  function csvCell(v) {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function csvRow(arr) { return arr.map(csvCell).join(','); }
+  function fmtDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+  // Exports exactly what's on screen: the current search + sort applied.
+  function buildCSV(list) {
+    const lines = [];
+    lines.push(csvRow(['Fairway Club — Customer directory']));
+    lines.push(csvRow(['Generated', new Date().toLocaleString()]));
+    if (query) lines.push(csvRow(['Filtered by', query]));
+    lines.push('');
+    lines.push(csvRow(['Name', 'Phone', 'Segment', 'Channel', 'Visits', 'Total spend', 'Avg spend / visit', 'Upcoming', 'First seen', 'Last seen']));
+    list.forEach(function (c) {
+      lines.push(csvRow([c.name, c.phone || '', c.segment, c.channel, c.visits, c.totalSpend, c.avgSpend, c.upcoming, c.firstDate, c.lastDate]));
+    });
+    return lines.join('\r\n');
+  }
+
   // ---------- render all ----------
   function renderAll() {
     const all = DL.customers();
@@ -346,6 +378,18 @@
     };
   });
   $('searchInput').addEventListener('input', function (e) { query = e.target.value.trim(); renderAll(); });
+
+  $('exportBtn').onclick = function () {
+    const list = sortList(DL.customers().filter(matches));
+    // Prepend a UTF-8 BOM so Excel renders the ฿ symbol correctly.
+    const blob = new Blob(['﻿' + buildCSV(list)], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'fairway-customers-' + fmtDate(new Date()) + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  };
 
   DL.onChange(function () { renderAll(); });
 
